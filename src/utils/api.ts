@@ -132,7 +132,11 @@ export async function uploadFile<T = unknown>(
       {
         hostname: url.hostname,
         port: url.port || (isHttps ? 443 : 80),
-        path: url.pathname,
+        // Preserve querystring so callers can pass `?queue_build=false`
+        // (used by install/submit to keep the uploaded ZIP from being
+        // consumed by the BYOT-from-zip Celery task before the
+        // marketplace builder picks it up).
+        path: url.pathname + (url.search || ""),
         method: "POST",
         headers,
       },
