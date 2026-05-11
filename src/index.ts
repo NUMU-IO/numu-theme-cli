@@ -6,6 +6,8 @@ import { buildCommand } from "./commands/build";
 import { pushCommand } from "./commands/push";
 import { submitCommand } from "./commands/submit";
 import { loginCommand } from "./commands/login";
+import { lintCommand } from "./commands/lint";
+import { addSectionCommand } from "./commands/add-section";
 
 const program = new Command();
 
@@ -17,9 +19,11 @@ program
 program.addCommand(initCommand);
 program.addCommand(devCommand);
 program.addCommand(checkCommand);
+program.addCommand(lintCommand);
 program.addCommand(buildCommand);
 program.addCommand(pushCommand);
 program.addCommand(submitCommand);
 program.addCommand(loginCommand);
+program.addCommand(addSectionCommand);
 
 program.parse();
