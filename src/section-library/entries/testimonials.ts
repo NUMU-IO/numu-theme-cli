@@ -4,7 +4,7 @@ export const testimonials: SectionLibraryEntry = {
   slug: "testimonials",
   name: "Testimonials",
   description: "Customer reviews carousel with quote, author, role, optional photo",
-  component: `import type { SectionProps, BlockProps } from "@numu/theme-sdk";
+  component: `import type { SectionProps, BlockProps } from "@numueg/theme-sdk";
 
 export default function Testimonials({ settings, blocks }: SectionProps & { blocks?: BlockProps[] }) {
   const heading = (settings.heading as string) || "What our customers say";

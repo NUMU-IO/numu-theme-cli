@@ -163,7 +163,7 @@ function ensureDirOf(p: string): void {
 }
 
 function emptySectionStub(pascal: string): string {
-  return `import type { SectionProps } from "@numu/theme-sdk";
+  return `import type { SectionProps } from "@numueg/theme-sdk";
 
 export default function ${pascal}({ settings }: SectionProps) {
   const headline = (settings.headline as string) || "${pascal}";

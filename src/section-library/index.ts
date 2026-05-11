@@ -5,7 +5,7 @@
  *   - `slug`        — what `add-section --from-library <slug>` accepts
  *   - `name`        — human-readable display name
  *   - `description` — one-line summary for `add-section --list`
- *   - `component`   — TSX source (uses @numu/theme-sdk + Tailwind +
+ *   - `component`   — TSX source (uses @numueg/theme-sdk + Tailwind +
  *                     Arabic-aware variants when relevant)
  *   - `schema`      — JSON section schema with bilingual labels +
  *                     sensible defaults

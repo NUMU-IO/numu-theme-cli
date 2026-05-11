@@ -4,8 +4,8 @@ export const richText: SectionLibraryEntry = {
   slug: "rich-text",
   name: "Rich Text",
   description: "Merchant-edited rich text block — title + paragraph(s) + optional CTA",
-  component: `import type { SectionProps } from "@numu/theme-sdk";
-import { RichText } from "@numu/theme-sdk";
+  component: `import type { SectionProps } from "@numueg/theme-sdk";
+import { RichText } from "@numueg/theme-sdk";
 
 export default function RichTextSection({ settings }: SectionProps) {
   const heading = (settings.heading as string) || "";

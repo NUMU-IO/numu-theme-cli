@@ -4,8 +4,8 @@ export const imageWithText: SectionLibraryEntry = {
   slug: "image-with-text",
   name: "Image with Text",
   description: "Two-column section: image on one side, headline + body + CTA on the other",
-  component: `import type { SectionProps } from "@numu/theme-sdk";
-import { useDirection } from "@numu/theme-sdk";
+  component: `import type { SectionProps } from "@numueg/theme-sdk";
+import { useDirection } from "@numueg/theme-sdk";
 
 export default function ImageWithText({ settings }: SectionProps) {
   const dir = useDirection();

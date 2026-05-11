@@ -4,7 +4,7 @@ export const logoCloud: SectionLibraryEntry = {
   slug: "logo-cloud",
   name: "Logo Cloud",
   description: "Row of partner / press / payment logos in grayscale with hover restore",
-  component: `import type { SectionProps, BlockProps } from "@numu/theme-sdk";
+  component: `import type { SectionProps, BlockProps } from "@numueg/theme-sdk";
 
 export default function LogoCloud({ settings, blocks }: SectionProps & { blocks?: BlockProps[] }) {
   const heading = (settings.heading as string) || "";

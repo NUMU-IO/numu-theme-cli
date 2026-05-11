@@ -4,7 +4,7 @@ export const faqAccordion: SectionLibraryEntry = {
   slug: "faq-accordion",
   name: "FAQ Accordion",
   description: "Collapsible question/answer pairs using native <details>/<summary>",
-  component: `import type { SectionProps, BlockProps } from "@numu/theme-sdk";
+  component: `import type { SectionProps, BlockProps } from "@numueg/theme-sdk";
 
 export default function FaqAccordion({ settings, blocks }: SectionProps & { blocks?: BlockProps[] }) {
   const heading = (settings.heading as string) || "Frequently asked questions";

@@ -4,7 +4,7 @@ export const announcementBar: SectionLibraryEntry = {
   slug: "announcement-bar",
   name: "Announcement Bar",
   description: "Thin top-of-page bar for promos / shipping notices, optionally dismissible",
-  component: `import type { SectionProps } from "@numu/theme-sdk";
+  component: `import type { SectionProps } from "@numueg/theme-sdk";
 import { useEffect, useState } from "react";
 
 const DISMISS_KEY = "numu_announcement_dismissed";

@@ -4,7 +4,7 @@ export const featuredBlogPosts: SectionLibraryEntry = {
   slug: "featured-blog-posts",
   name: "Featured Blog Posts",
   description: "3-up grid of recent blog articles with cover image + title + excerpt",
-  component: `import type { SectionProps } from "@numu/theme-sdk";
+  component: `import type { SectionProps } from "@numueg/theme-sdk";
 
 interface Article {
   handle: string;
