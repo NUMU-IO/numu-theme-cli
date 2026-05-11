@@ -149,7 +149,7 @@ export const installCommand = new Command("install")
 
       // ── Step 2: build locally + package ─────────────────────────────────
       // Why build here instead of letting the worker do it: the dev
-      // env uses pnpm/npm-link to wire @numu/theme-sdk + theme-plugin
+      // env uses pnpm/npm-link to wire @numueg/theme-sdk + theme-plugin
       // as workspace dependencies (`link:../numu-theme-sdk`). The
       // build worker can't resolve those — npm doesn't even understand
       // the `link:` protocol — so its own `npm install` fails with

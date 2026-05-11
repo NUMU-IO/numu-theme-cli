@@ -4,8 +4,8 @@ export const featuredProducts: SectionLibraryEntry = {
   slug: "featured-products",
   name: "Featured Products",
   description: "Grid of hand-picked products with title + price + CTA",
-  component: `import type { SectionProps } from "@numu/theme-sdk";
-import { ProductCard, useProducts } from "@numu/theme-sdk";
+  component: `import type { SectionProps } from "@numueg/theme-sdk";
+import { ProductCard, useProducts } from "@numueg/theme-sdk";
 
 export default function FeaturedProducts({ settings }: SectionProps) {
   const ids = (settings.product_ids as string[]) || [];

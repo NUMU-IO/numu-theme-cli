@@ -5,8 +5,8 @@ export const heroWithCta: SectionLibraryEntry = {
   name: "Hero with Call-to-Action",
   description:
     "Full-bleed hero — headline, subtitle, primary + secondary buttons, optional background image",
-  component: `import type { SectionProps } from "@numu/theme-sdk";
-import { useDirection, useTranslation } from "@numu/theme-sdk";
+  component: `import type { SectionProps } from "@numueg/theme-sdk";
+import { useDirection, useTranslation } from "@numueg/theme-sdk";
 
 export default function HeroWithCta({ settings }: SectionProps) {
   const dir = useDirection();

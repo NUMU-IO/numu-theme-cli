@@ -4,7 +4,7 @@ export const contactMap: SectionLibraryEntry = {
   slug: "contact-map",
   name: "Contact + Map",
   description: "Two-column contact info (address / phone / hours) + embedded map iframe",
-  component: `import type { SectionProps } from "@numu/theme-sdk";
+  component: `import type { SectionProps } from "@numueg/theme-sdk";
 
 export default function ContactMap({ settings }: SectionProps) {
   const heading = (settings.heading as string) || "Visit us";

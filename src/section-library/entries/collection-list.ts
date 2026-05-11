@@ -4,8 +4,8 @@ export const collectionList: SectionLibraryEntry = {
   slug: "collection-list",
   name: "Collection List",
   description: "Grid of collection cards (image + name) linking to each collection's PLP",
-  component: `import type { SectionProps } from "@numu/theme-sdk";
-import { CollectionCard, useCollections } from "@numu/theme-sdk";
+  component: `import type { SectionProps } from "@numueg/theme-sdk";
+import { CollectionCard, useCollections } from "@numueg/theme-sdk";
 
 export default function CollectionListSection({ settings }: SectionProps) {
   const ids = (settings.collection_ids as string[]) || [];

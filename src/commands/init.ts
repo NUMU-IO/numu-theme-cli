@@ -19,7 +19,7 @@ import * as path from "path";
  *                               the theme component tree
  *   index.html                — Vite entry
  *   vite.config.ts            — minimal config: ESM lib build, externalize
- *                               react/react-dom and @numu/theme-sdk
+ *                               react/react-dom and @numueg/theme-sdk
  *   tsconfig.json             — JSX + ESNext modules
  *   package.json              — scripts + deps + matching version
  *   .gitignore
@@ -165,7 +165,7 @@ export const initCommand = new Command("init")
     // Sample section
     fs.writeFileSync(
       path.join(dir, "src/sections/Hero.tsx"),
-      `import type { SectionProps } from "@numu/theme-sdk";
+      `import type { SectionProps } from "@numueg/theme-sdk";
 
 export default function Hero({ settings }: SectionProps) {
   return (
@@ -241,14 +241,14 @@ import type {
   Product,
   Collection,
   Store,
-} from "@numu/theme-sdk";
+} from "@numueg/theme-sdk";
 import {
   usePage,
   PageContext,
   ProductProvider,
   CollectionProvider,
   NuMuProvider,
-} from "@numu/theme-sdk";
+} from "@numueg/theme-sdk";
 import Hero from "./sections/Hero";
 
 interface ThemeProps {
@@ -438,11 +438,11 @@ if (root) createRoot(root).render(<Theme themeSettings={placeholder as any} />);
       path.join(dir, "vite.config.ts"),
       `import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import { numuTheme } from "@numu/theme-plugin";
+import { numuTheme } from "@numueg/theme-plugin";
 
-// The @numu/theme-plugin handles all the NUMU-specific glue:
+// The @numueg/theme-plugin handles all the NUMU-specific glue:
 //   - validates theme.json + settings_schema.json + entry point
-//   - externalizes React + @numu/theme-sdk (host-provided)
+//   - externalizes React + @numueg/theme-sdk (host-provided)
 //   - emits dist/manifest.json + dist/import-map.json after build
 //
 // You don't need to repeat \`build.lib\` / \`build.rollupOptions.external\`
@@ -494,10 +494,10 @@ export default defineConfig({
             build: "numu-theme build",
             check: "numu-theme check",
           },
-          dependencies: { "@numu/theme-sdk": "^0.1.0" },
+          dependencies: { "@numueg/theme-sdk": "^0.1.0" },
           devDependencies: {
-            "@numu/theme-cli": "^0.1.0",
-            "@numu/theme-plugin": "^0.1.0",
+            "@numueg/theme-cli": "^0.1.0",
+            "@numueg/theme-plugin": "^0.1.0",
             "@vitejs/plugin-react": "^4.3.0",
             vite: "^6.0.0",
             typescript: "^5.8.0",

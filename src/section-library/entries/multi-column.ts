@@ -4,8 +4,8 @@ export const multiColumn: SectionLibraryEntry = {
   slug: "multi-column",
   name: "Multi-column",
   description: "2 / 3 / 4-column features grid with icon + heading + text per column",
-  component: `import type { SectionProps, BlockProps } from "@numu/theme-sdk";
-import { Block } from "@numu/theme-sdk";
+  component: `import type { SectionProps, BlockProps } from "@numueg/theme-sdk";
+import { Block } from "@numueg/theme-sdk";
 
 export default function MultiColumn({ settings, blocks }: SectionProps & { blocks?: BlockProps[] }) {
   const heading = (settings.heading as string) || "";

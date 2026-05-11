@@ -97,14 +97,14 @@ export function validateTheme(themeDir: string): ValidationResult {
     }
   }
 
-  // Rule 7: package.json has @numu/theme-sdk
+  // Rule 7: package.json has @numueg/theme-sdk
   const pkgPath = path.join(themeDir, "package.json");
   if (fs.existsSync(pkgPath)) {
     try {
       const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
       const deps = { ...pkg.dependencies, ...pkg.peerDependencies };
-      if (!deps["@numu/theme-sdk"]) {
-        warnings.push("@numu/theme-sdk not found in dependencies — hooks will not be available");
+      if (!deps["@numueg/theme-sdk"]) {
+        warnings.push("@numueg/theme-sdk not found in dependencies — hooks will not be available");
       }
     } catch {}
   }

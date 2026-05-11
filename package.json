@@ -1,32 +1,65 @@
 {
-  "name": "@numu/theme-cli",
+  "name": "@numueg/theme-cli",
   "version": "0.1.0",
-  "description": "CLI for developing, validating, building, and publishing NUMU themes",
+  "description": "CLI for developing, validating, building, linting, and publishing NUMU storefront themes",
+  "keywords": [
+    "numu",
+    "theme",
+    "cli",
+    "scaffold",
+    "lint",
+    "storefront",
+    "ecommerce",
+    "byot"
+  ],
+  "license": "MIT",
+  "author": "NUMU <hello@numueg.app>",
+  "homepage": "https://numueg.app/docs/cli-plugin/overview",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/NUMU-IO/numu-theme-cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/NUMU-IO/numu-theme-cli/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "main": "./dist/index.js",
   "bin": {
     "numu-theme": "./dist/index.js"
   },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "build": "tsup",
-    "dev": "tsup --watch"
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run typecheck && npm run build",
+    "pack:dry": "npm pack --dry-run"
   },
   "dependencies": {
-    "commander": "^13.0.0",
-    "chalk": "^5.4.0",
-    "ora": "^8.2.0",
     "archiver": "^7.0.0",
+    "chalk": "^5.4.0",
+    "commander": "^13.0.0",
     "form-data": "^4.0.0",
     "inquirer": "^12.0.0",
+    "ora": "^8.2.0",
     "semver": "^7.7.0"
   },
   "devDependencies": {
-    "@types/node": "^22.0.0",
     "@types/archiver": "^6.0.0",
+    "@types/node": "^22.0.0",
     "@types/semver": "^7.5.0",
-    "typescript": "^5.8.0",
-    "tsup": "^8.4.0"
-  },
-  "files": [
-    "dist"
-  ],
-  "license": "MIT"
+    "tsup": "^8.4.0",
+    "typescript": "^5.8.0"
+  }
 }
