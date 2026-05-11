@@ -58,6 +58,13 @@ export const initCommand = new Command("init")
           version: "0.1.0",
           layout: "single-column",
           description: `${name} NUMU theme`,
+          // Phase 7.3 — static BYOT templates for chrome that renders
+          // outside the React tree (the streaming loading skeleton +
+          // the client error boundary). Themes that want to fully
+          // own those moments edit these HTML files; absent or 404
+          // → the platform's hardcoded fallback renders.
+          error_template: "templates/error.html",
+          loading_template: "templates/loading.html",
           presets: {
             templates: {
               home: {
@@ -75,6 +82,44 @@ export const initCommand = new Command("init")
         null,
         2,
       ),
+    );
+
+    // Phase 7.3 — scaffold the static BYOT templates. These ship in
+    // the built theme bundle (dist/templates/{error,loading}.html)
+    // and are fetched + injected by the storefront's error.tsx and
+    // loading.tsx routes when the active theme is BYOT.
+    fs.mkdirSync(path.join(dir, "templates"), { recursive: true });
+    fs.writeFileSync(
+      path.join(dir, "templates/error.html"),
+      `<!--
+  Static BYOT error template — rendered by the storefront when a
+  page throws. No JS available (the bundle might be the thing that
+  failed). Use <button data-numu-reset> to expose a retry button —
+  the storefront wires the click for you.
+-->
+<main role="alert" style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1rem;font-family:system-ui">
+  <div style="text-align:center;max-width:28rem">
+    <h1 style="font-size:1.5rem;font-weight:700;color:#b91c1c">Something went wrong</h1>
+    <p style="color:#374151;margin-top:.5rem">Please try again in a moment.</p>
+    <button data-numu-reset type="button" style="margin-top:1.5rem;padding:.5rem 1rem;background:#1d4ed8;color:white;border-radius:.375rem;border:0;cursor:pointer">Try again</button>
+  </div>
+</main>
+`,
+    );
+    fs.writeFileSync(
+      path.join(dir, "templates/loading.html"),
+      `<!-- Static BYOT loading skeleton. -->
+<div role="status" aria-live="polite" aria-label="Loading" style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1rem;font-family:system-ui">
+  <div style="display:flex;align-items:center;gap:.75rem;color:#4b5563">
+    <svg style="width:1.25rem;height:1.25rem;animation:spin 1s linear infinite" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-opacity=".25" stroke-width="3"></circle>
+      <path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" stroke-width="3" stroke-linecap="round"></path>
+    </svg>
+    <span style="font-size:.875rem;font-weight:500">Loading…</span>
+  </div>
+  <style>@keyframes spin { to { transform: rotate(360deg) } }</style>
+</div>
+`,
     );
 
     // settings_schema.json

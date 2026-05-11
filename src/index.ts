@@ -10,6 +10,8 @@ import { loginCommand } from "./commands/login";
 import { statusCommand } from "./commands/status";
 import { doctorCommand } from "./commands/doctor";
 import { addSectionCommand, addBlockCommand } from "./commands/add-section";
+import { pullCommand } from "./commands/pull";
+import { deleteCommand } from "./commands/delete";
 
 const program = new Command();
 
@@ -30,5 +32,7 @@ program.addCommand(statusCommand);
 program.addCommand(doctorCommand);
 program.addCommand(addSectionCommand);
 program.addCommand(addBlockCommand);
+program.addCommand(pullCommand);
+program.addCommand(deleteCommand);
 
 program.parse();
