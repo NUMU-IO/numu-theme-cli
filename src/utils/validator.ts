@@ -52,16 +52,48 @@ export function validateTheme(themeDir: string): ValidationResult {
     errors.push("Theme must have at least one section in src/sections/");
   }
 
-  // Rule 6: Section schemas
+  // Rule 6: Section registry ↔ schema sync (Phase 2.6)
+  //
+  // Drift between `src/sections/<Type>.tsx` and `schemas/sections/<type>.json`
+  // is a known footgun: the customizer reads the JSON, the storefront reads
+  // the component, and a missing pair crashes at customizer runtime ("section
+  // type X not found in registry") OR at storefront mount ("no schema for
+  // type X"). We catch both directions at validate time so theme devs see
+  // the failure before publishing.
+  //
+  // Direction 1 (component without schema): warning. The plugin's codegen
+  // will skip it but the merchant won't be able to add it via the customizer.
+  // Direction 2 (schema without component): ERROR. Adding the schema's
+  // section in the customizer will throw at the storefront on the next render.
+  const schemaDir = path.join(themeDir, "schemas", "sections");
+  const componentNames = new Set<string>();
+  const schemaNames = new Set<string>();
   if (fs.existsSync(sectionsDir)) {
-    const sectionFiles = fs.readdirSync(sectionsDir).filter(f => f.endsWith(".tsx") || f.endsWith(".jsx"));
-    const schemaDir = path.join(themeDir, "schemas", "sections");
-    for (const file of sectionFiles) {
-      const name = path.basename(file, path.extname(file)).toLowerCase();
-      const schemaPath = path.join(schemaDir, `${name}.json`);
-      if (!fs.existsSync(schemaPath)) {
-        warnings.push(`Section "${name}" has no schema file at schemas/sections/${name}.json`);
-      }
+    for (const file of fs.readdirSync(sectionsDir)) {
+      if (!/\.(tsx|ts|jsx|js)$/.test(file)) continue;
+      componentNames.add(path.basename(file, path.extname(file)).toLowerCase());
+    }
+  }
+  if (fs.existsSync(schemaDir)) {
+    for (const file of fs.readdirSync(schemaDir)) {
+      if (!file.endsWith(".json")) continue;
+      schemaNames.add(path.basename(file, ".json").toLowerCase());
+    }
+  }
+  for (const name of componentNames) {
+    if (!schemaNames.has(name)) {
+      warnings.push(
+        `Section "${name}" has no schema at schemas/sections/${name}.json — ` +
+          "merchants won't be able to add this section via the customizer.",
+      );
+    }
+  }
+  for (const name of schemaNames) {
+    if (!componentNames.has(name)) {
+      errors.push(
+        `schemas/sections/${name}.json has no matching component at src/sections/<${name}>.tsx — ` +
+          "the storefront will throw 'unknown section type' the moment a merchant adds it.",
+      );
     }
   }
 

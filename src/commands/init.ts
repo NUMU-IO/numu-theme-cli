@@ -172,30 +172,173 @@ export default function Hero({ settings }: SectionProps) {
       ),
     );
 
-    // Theme entry point — exports the theme component the storefront mounts.
+    // Theme entry point — exports both:
+    //
+    //   1. default Theme component (used by built-in storefronts that share
+    //      React with the bundle via an import map).
+    //   2. mount(el, props) — used by BYOT host paths that load the bundle
+    //      with its OWN React copy. The bundle owns the render cycle inside
+    //      `el` so its hooks (useState/useContext/etc.) find their dispatcher.
+    //      Without this you hit "Cannot read properties of null (reading
+    //      'useContext')" the moment any SDK hook runs.
+    //
+    // The mount() also wraps the tree in NuMuProvider + PageContext +
+    // Product/CollectionProvider so SDK hooks like useLocalization,
+    // useCart, useShop, useProduct all work out of the box. The host
+    // passes `page.data.{product,collection,products,collections}` from
+    // the route handler.
     fs.writeFileSync(
       path.join(dir, "src/main.tsx"),
-      `import type { ThemeSettingsV3 } from "@numu/theme-sdk";
+      `import { createRoot, type Root } from "react-dom/client";
+import type {
+  ThemeSettingsV3,
+  Page,
+  Product,
+  Collection,
+  Store,
+} from "@numu/theme-sdk";
+import {
+  usePage,
+  PageContext,
+  ProductProvider,
+  CollectionProvider,
+  NuMuProvider,
+} from "@numu/theme-sdk";
 import Hero from "./sections/Hero";
 
 interface ThemeProps {
   themeSettings: ThemeSettingsV3;
 }
 
+const SECTION_REGISTRY: Record<string, React.ComponentType<any>> = {
+  hero: Hero,
+};
+
 export default function Theme({ themeSettings }: ThemeProps) {
-  const home = themeSettings.templates?.home;
+  const page = usePage();
+  const pageType = page?.type || "home";
+  const template =
+    themeSettings.templates?.[pageType] || themeSettings.templates?.home;
+
   return (
     <main>
-      {home?.order.map((sectionId) => {
-        const section = home.sections[sectionId];
+      {template?.order.map((sectionId) => {
+        const section = template.sections[sectionId];
         if (!section || section.disabled) return null;
-        if (section.type === "hero") {
-          return <Hero key={sectionId} settings={section.settings} />;
-        }
-        return null;
+        const Component = SECTION_REGISTRY[section.type];
+        if (!Component) return null;
+        return (
+          <Component
+            key={sectionId}
+            settings={section.settings}
+            blocks={section.blocks}
+            blockOrder={section.block_order}
+          />
+        );
       })}
     </main>
   );
+}
+
+// ── BYOT mount helper ──────────────────────────────────────────────────────
+// Required by Next.js storefront's <ByotThemeBoundary>. Owns the React
+// render cycle for the bundle's subtree so hooks work.
+
+interface MountProps {
+  themeSettings: ThemeSettingsV3;
+  storeData?: Store;
+  page?: Page & { data?: Record<string, unknown> };
+}
+
+// Fallback Store used only when host didn't pass storeData. NuMuProvider
+// hard-requires Store.currency for Intl.NumberFormat — synthesize one
+// instead of crashing.
+const FALLBACK_STORE: Store = {
+  id: "",
+  name: "",
+  slug: "",
+  currency: "USD",
+  default_language: "en",
+  use_nextjs_storefront: true,
+};
+
+function ThemeWithContext({ themeSettings, storeData, page }: MountProps) {
+  // Storefront returns snake_case \`default_currency\` / \`default_language\`
+  // but SDK Store expects \`currency\`. Map both shapes so NuMuProvider's
+  // Intl.NumberFormat doesn't blow up on an empty currency code.
+  const raw = (storeData ?? FALLBACK_STORE) as Record<string, unknown> & Store;
+  const store: Store = {
+    ...raw,
+    currency:
+      (raw.currency as string) ||
+      (raw.default_currency as string) ||
+      FALLBACK_STORE.currency,
+    default_language:
+      (raw.default_language as string) || FALLBACK_STORE.default_language,
+  };
+
+  const product = page?.data?.product as Product | undefined;
+  const collection = page?.data?.collection as Collection | undefined;
+  const pageValue: Page = page
+    ? {
+        type: page.type,
+        title: page.title || "",
+        handle: page.handle,
+        data: page.data,
+      }
+    : { type: "home", title: "" };
+
+  let tree = <Theme themeSettings={themeSettings} />;
+  if (collection)
+    tree = <CollectionProvider collection={collection}>{tree}</CollectionProvider>;
+  if (product)
+    tree = <ProductProvider product={product}>{tree}</ProductProvider>;
+
+  return (
+    <NuMuProvider store={store} themeSettings={themeSettings} locale={store.default_language}>
+      <PageContext.Provider value={pageValue}>{tree}</PageContext.Provider>
+    </NuMuProvider>
+  );
+}
+
+// The host (\`ByotThemeBoundary\`) prefers the object-shape return:
+//   { unmount, update }
+// When \`update\` is present, the customizer forwards prop-only changes
+// (themeSettings / storeData / page) into the SAME React tree without
+// re-importing the bundle. Without \`update\`, every settings tweak
+// would trigger a full remount — fine, but visibly slower.
+export interface MountHandle {
+  unmount: () => void;
+  update: (next: MountProps) => void;
+}
+
+export function mount(el: HTMLElement, props: MountProps): MountHandle {
+  const root: Root = createRoot(el);
+  let current: MountProps = props;
+  root.render(<ThemeWithContext {...current} />);
+
+  // Live preview: the storefront's PreviewBridge forwards customizer edits
+  // as \`numu:theme-update\` window events. Re-render with the new payload.
+  // Also covered by the \`update\` method below — both paths funnel into
+  // the same root.render() so they can't drift.
+  function handleUpdate(e: Event) {
+    const detail = (e as CustomEvent<ThemeSettingsV3>).detail;
+    if (!detail || typeof detail !== "object") return;
+    current = { ...current, themeSettings: detail };
+    root.render(<ThemeWithContext {...current} />);
+  }
+  window.addEventListener("numu:theme-update", handleUpdate);
+
+  return {
+    unmount: () => {
+      window.removeEventListener("numu:theme-update", handleUpdate);
+      root.unmount();
+    },
+    update: (next: MountProps) => {
+      current = next;
+      root.render(<ThemeWithContext {...current} />);
+    },
+  };
 }
 `,
     );

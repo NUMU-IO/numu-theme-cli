@@ -59,20 +59,23 @@ export const submitCommand = new Command("submit")
         result.warnings.forEach((w) => console.log(`  ⚠ ${w}`));
       }
 
-      // Read the version from the theme's package.json — the developer's
-      // local source of truth — so what we submit always matches what
-      // they versioned.
-      const pkgPath = path.join(options.dir, "package.json");
+      // Read the version from theme.json — the canonical theme manifest.
+      // The build worker validates the submitted version_string against
+      // theme.json.version, so reading from the same file eliminates
+      // a class of mismatch errors. (The old code read from package.json
+      // and required dev to keep the two in sync by hand — needless
+      // friction.)
+      const themeJsonPath = path.join(options.dir, "theme.json");
       let version: string | undefined;
       try {
-        const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
-        version = pkg.version;
+        const tj = JSON.parse(fs.readFileSync(themeJsonPath, "utf-8"));
+        version = tj.version;
       } catch {
-        console.error("Cannot read package.json from theme directory.");
+        console.error("Cannot read theme.json from theme directory.");
         process.exit(1);
       }
       if (!version) {
-        console.error("package.json has no `version` field.");
+        console.error("theme.json has no `version` field.");
         process.exit(1);
       }
 
@@ -84,9 +87,12 @@ export const submitCommand = new Command("submit")
       await zipDirectory(options.dir, zipPath);
 
       // Step 1: upload the ZIP via the generic upload endpoint.
+      // queue_build=false so the upload endpoint doesn't auto-trigger
+      // its BYOT build (which deletes the ZIP). The marketplace
+      // submit_version flow runs its own build on the same file.
       console.log("Uploading source...");
       const uploadRes = await uploadFile<UploadResponse>(
-        "/themes/upload",
+        "/themes/upload?queue_build=false",
         zipPath,
       );
       if (uploadRes.status >= 300) {

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "CLI for developing, validating, building, and publishing NUMU themes",
   "bin": {
-    "numu-theme": "./dist/index.cjs"
+    "numu-theme": "./dist/index.js"
   },
   "scripts": {
     "build": "tsup",
