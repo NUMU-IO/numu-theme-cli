@@ -1,0 +1,150 @@
+# Phase 5.10 — End-to-end test for `numu-theme init` + `numu-theme dev`.
+#
+# Confirms that a fresh theme scaffolded by the CLI:
+#   1. Compiles (`numu-theme build`)
+#   2. Boots a dev server (`numu-theme dev`) on port 5173
+#   3. Serves /theme.json + /theme.js + /sections.json (the
+#      plugin-emitted dev endpoints)
+#   4. Passes `numu-theme doctor` (Phase 2.6 contract checks)
+#
+# This is the single test that catches:
+#   - Plugin/SDK version drift (entry mount export, defineSection
+#     factory shape, schema/registry sync)
+#   - Init-template breakage (CLI scaffold produces a buildable
+#     theme on every OS / Node version we support)
+#   - Dev-server middleware regressions (the iframe in the customizer
+#     pulls /theme.json + /theme.js from this exact server)
+#
+# Runs on every push + PR; the matrix covers the platforms developers
+# actually use. Windows is in the matrix because a non-trivial slice
+# of the dev community is on it and our path-handling has bitten us
+# there before (Linux-only cwd assumptions, forward-slash paths).
+
+name: theme-init e2e
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+
+# Cancel in-progress runs on the same branch when a new commit lands —
+# E2E is the slowest test in the matrix, no point waiting for stale runs.
+concurrency:
+  group: theme-init-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  init-and-dev:
+    name: init + dev (${{ matrix.os }} / Node ${{ matrix.node }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        node: ["20", "22"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      # Build the CLI from this branch so the test exercises the
+      # version under review, not whatever's published on npm.
+      - name: Install + build CLI
+        run: |
+          npm ci
+          npm run build
+
+      # Link the CLI globally so `numu-theme` resolves on PATH for
+      # the scaffolded theme's package.json scripts.
+      - name: Link CLI globally
+        run: npm link
+
+      # ── Scaffold a fresh theme ─────────────────────────────────────
+      # `init` is non-interactive — takes just the theme name + an
+      # optional --template. CI passes nothing extra so we exercise
+      # the default scaffold (what most theme devs see on day 1).
+      - name: Scaffold demo theme
+        shell: bash
+        run: |
+          cd "$RUNNER_TEMP"
+          numu-theme init demo-theme
+
+      # ── Install + build ────────────────────────────────────────────
+      - name: Install + build the scaffolded theme
+        shell: bash
+        run: |
+          cd "$RUNNER_TEMP/demo-theme"
+          npm install
+          npm run build
+          # Plugin's contract validator must have produced these:
+          test -f dist/theme.js
+          test -f dist/theme.css
+          test -f dist/manifest.json
+          test -f dist/import-map.json
+
+      # ── Doctor (Phase 2.6 contract checks) ─────────────────────────
+      - name: Run doctor (no backend; warnings allowed, no errors)
+        shell: bash
+        run: |
+          cd "$RUNNER_TEMP/demo-theme"
+          # Doctor exits non-zero only on errors. Warnings (no auth,
+          # no backend reachable, dev server not running) are
+          # expected in CI and don't fail the run.
+          numu-theme doctor || (echo "doctor reported errors"; exit 1)
+
+      # ── Dev server smoke ───────────────────────────────────────────
+      - name: Start dev server
+        shell: bash
+        run: |
+          cd "$RUNNER_TEMP/demo-theme"
+          # Background the dev server; capture the PID so we can
+          # kill it later. nohup keeps it alive when the step ends.
+          nohup numu-theme dev --port 5173 > dev.log 2>&1 &
+          echo "DEV_PID=$!" >> $GITHUB_ENV
+          # Wait up to 30s for the dev server to bind. Polling beats
+          # a fixed sleep because cold starts vary by platform.
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:5173/theme.json > /dev/null; then
+              echo "dev server ready after ${i}s"
+              break
+            fi
+            sleep 1
+          done
+
+      - name: Verify plugin-emitted endpoints
+        shell: bash
+        run: |
+          # /theme.json — the manifest the host reads to render the
+          # customizer. Must include id, name, version.
+          curl -fsS http://127.0.0.1:5173/theme.json | grep -q '"id"'
+
+          # /theme.js — the bundled entry the host loads via the
+          # federation import map. Must export `mount`.
+          curl -fsS http://127.0.0.1:5173/theme.js | grep -q "mount"
+
+          # /sections.json — synthesized from schemas/sections/*.json
+          # by the plugin's middleware. Must be valid JSON.
+          curl -fsS http://127.0.0.1:5173/sections.json | python -c "import sys, json; json.load(sys.stdin)"
+
+      - name: Stop dev server
+        if: always()
+        shell: bash
+        run: |
+          if [ -n "$DEV_PID" ]; then
+            kill $DEV_PID 2>/dev/null || true
+          fi
+
+      - name: Upload dev-server log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dev-log-${{ matrix.os }}-${{ matrix.node }}
+          path: ${{ runner.temp }}/demo-theme/dev.log
+          if-no-files-found: ignore
