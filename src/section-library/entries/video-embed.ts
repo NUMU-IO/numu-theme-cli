@@ -4,7 +4,7 @@ export const videoEmbed: SectionLibraryEntry = {
   slug: "video-embed",
   name: "Video Embed",
   description: "Responsive 16:9 video (YouTube / Vimeo / self-hosted MP4)",
-  component: `import type { SectionProps } from "@numu/theme-sdk";
+  component: `import type { SectionProps } from "@numueg/theme-sdk";
 
 export default function VideoEmbed({ settings }: SectionProps) {
   const heading = (settings.heading as string) || "";

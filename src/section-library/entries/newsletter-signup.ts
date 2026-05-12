@@ -4,8 +4,8 @@ export const newsletterSignup: SectionLibraryEntry = {
   slug: "newsletter-signup",
   name: "Newsletter Signup",
   description: "Email capture form with merchant-supplied heading + consent copy",
-  component: `import type { SectionProps } from "@numu/theme-sdk";
-import { Form } from "@numu/theme-sdk";
+  component: `import type { SectionProps } from "@numueg/theme-sdk";
+import { Form } from "@numueg/theme-sdk";
 
 export default function NewsletterSignup({ settings }: SectionProps) {
   const heading = (settings.heading as string) || "Stay in touch";

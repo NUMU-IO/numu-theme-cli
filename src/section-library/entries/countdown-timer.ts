@@ -4,7 +4,7 @@ export const countdownTimer: SectionLibraryEntry = {
   slug: "countdown-timer",
   name: "Countdown Timer",
   description: "Sale-end countdown — DD:HH:MM:SS ticking to a merchant-set target date",
-  component: `import type { SectionProps } from "@numu/theme-sdk";
+  component: `import type { SectionProps } from "@numueg/theme-sdk";
 import { useEffect, useState } from "react";
 
 function diff(target: number) {

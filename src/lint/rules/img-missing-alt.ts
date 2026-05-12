@@ -32,7 +32,7 @@ const rule: LintRule = {
               file,
               line: i + 1,
               message: `<img> tag missing alt attribute.`,
-              suggestion: `Add alt="..." (or alt="" for purely decorative images), or use <Image> from @numu/theme-sdk.`,
+              suggestion: `Add alt="..." (or alt="" for purely decorative images), or use <Image> from @numueg/theme-sdk.`,
             });
           }
         }
