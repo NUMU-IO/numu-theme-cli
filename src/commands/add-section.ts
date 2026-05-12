@@ -1,215 +1,260 @@
 import { Command } from "commander";
 import * as fs from "fs";
 import * as path from "path";
+import { LIBRARY, findEntry } from "../section-library";
 
 /**
  * `numu-theme add-section <name>` — scaffold a new section.
  *
- * Writes the four files theme devs would otherwise create by hand:
- *   1. src/sections/<snake_name>.tsx — React component using <Section>
- *      wrapper from @numu/theme-sdk so the customizer click-to-select
- *      works.
- *   2. schemas/sections/<snake_name>.json — settings + locales schema.
- *   3. Reminder line printed to stdout asking the dev to register the
- *      section in src/main.tsx's SECTION_REGISTRY (we don't auto-edit
- *      because every theme structures main.tsx slightly differently).
+ * Two modes:
+ *   - default            → empty section stub
+ *   - --from-library <slug> → copy from the built-in library
+ *                              (15+ ready-made sections)
  *
- * Naming: the input <name> is normalized to snake_case so the file
- * lives at `<snake>.tsx` and the schema at `<snake>.json` — that's the
- * convention the validator expects (lowercased filename matches schema
- * filename verbatim).
+ * In either case the command:
+ *   1. Writes src/sections/<PascalCase>.tsx
+ *   2. Writes schemas/sections/<kebab-case>.json
+ *   3. Updates src/main.tsx to import + dispatch the section
+ *      (best-effort regex insert; falls back to a comment hint
+ *      when main.tsx structure is unexpected)
+ *   4. Appends the section to theme.json's home preset's section
+ *      list so it shows up in the customizer immediately
+ *
+ * `--list` flag prints the library catalog and exits.
  */
+
 export const addSectionCommand = new Command("add-section")
-  .description("Scaffold a new section (component + schema)")
-  .argument("<name>", "Section name, e.g. 'image_with_text' or 'TestimonialGrid'")
+  .description("Scaffold a new section (optionally from the built-in library)")
+  .argument("[name]", "Section slug (kebab-case, e.g. 'hero-banner')")
+  .option(
+    "--from-library <slug>",
+    "Copy from the built-in section library (run with --list to see options)",
+  )
+  .option("--list", "List the built-in section library and exit")
   .option("-d, --dir <directory>", "Theme directory", ".")
-  .action((name: string, options: { dir: string }) => {
-    const themeDir = path.resolve(options.dir);
+  .action(
+    async (
+      name: string | undefined,
+      options: { fromLibrary?: string; list?: boolean; dir: string },
+    ) => {
+      if (options.list) {
+        console.log("Built-in section library:\n");
+        for (const entry of LIBRARY) {
+          console.log(`  ${entry.slug.padEnd(24)} ${entry.description}`);
+        }
+        console.log(
+          "\nUsage: numu-theme add-section <new-name> --from-library <slug>",
+        );
+        return;
+      }
 
-    // Sanity check that we're inside a theme.
-    if (!fs.existsSync(path.join(themeDir, "theme.json"))) {
-      console.error(
-        `No theme.json in ${themeDir}. Run inside a theme directory.`,
+      if (!name) {
+        console.error(
+          "Section name is required. Run with --list to see library options.",
+        );
+        process.exit(1);
+      }
+
+      const themeDir = path.resolve(process.cwd(), options.dir);
+      if (!fs.existsSync(path.join(themeDir, "theme.json"))) {
+        console.error(
+          "No theme.json in this directory. Run from a theme project root.",
+        );
+        process.exit(1);
+      }
+
+      const slug = toKebab(name);
+      const pascal = toPascal(name);
+
+      let componentSource: string;
+      let schemaJson: Record<string, unknown>;
+
+      if (options.fromLibrary) {
+        const entry = findEntry(options.fromLibrary);
+        if (!entry) {
+          console.error(
+            `Unknown library slug: '${options.fromLibrary}'. Run --list to see options.`,
+          );
+          process.exit(1);
+        }
+        componentSource = entry.component;
+        // Clone schema + override its `type` field to the user's
+        // chosen slug. Theme dev can rename freely; the library is a
+        // starting point, not a runtime tie.
+        schemaJson = JSON.parse(JSON.stringify(entry.schema)) as Record<
+          string,
+          unknown
+        >;
+        (schemaJson as { type?: string }).type = slug;
+      } else {
+        componentSource = emptySectionStub(pascal);
+        schemaJson = {
+          type: slug,
+          name: humanize(slug),
+          settings: [
+            {
+              type: "text",
+              id: "headline",
+              label: "Headline",
+              default: humanize(slug),
+            },
+          ],
+        };
+      }
+
+      // 1. component
+      const componentPath = path.join(themeDir, "src/sections", `${pascal}.tsx`);
+      ensureDirOf(componentPath);
+      if (fs.existsSync(componentPath)) {
+        console.error(`Already exists: ${componentPath}`);
+        process.exit(1);
+      }
+      fs.writeFileSync(componentPath, componentSource);
+
+      // 2. schema
+      const schemaPath = path.join(themeDir, "schemas/sections", `${slug}.json`);
+      ensureDirOf(schemaPath);
+      fs.writeFileSync(schemaPath, JSON.stringify(schemaJson, null, 2));
+
+      // 3. main.tsx best-effort wire-up
+      tryWireMain(themeDir, slug, pascal);
+
+      // 4. add to home preset
+      tryAddToHomePreset(themeDir, slug);
+
+      console.log(`✔ Created section '${slug}'.`);
+      console.log(`  • src/sections/${pascal}.tsx`);
+      console.log(`  • schemas/sections/${slug}.json`);
+      console.log(
+        options.fromLibrary
+          ? `\nFrom library: '${options.fromLibrary}'. Edit the files to customize.`
+          : "\nEdit the files to add your design + behavior.",
       );
-      process.exit(1);
-    }
+    },
+  );
 
-    const snake = toSnakeCase(name);
-    const pascal = toPascalCase(name);
-    const sectionsDir = path.join(themeDir, "src", "sections");
-    const schemasDir = path.join(themeDir, "schemas", "sections");
-    fs.mkdirSync(sectionsDir, { recursive: true });
-    fs.mkdirSync(schemasDir, { recursive: true });
 
-    const componentPath = path.join(sectionsDir, `${snake}.tsx`);
-    const schemaPath = path.join(schemasDir, `${snake}.json`);
-
-    if (fs.existsSync(componentPath)) {
-      console.error(`Already exists: ${path.relative(themeDir, componentPath)}`);
-      process.exit(1);
-    }
-    if (fs.existsSync(schemaPath)) {
-      console.error(`Already exists: ${path.relative(themeDir, schemaPath)}`);
-      process.exit(1);
-    }
-
-    // ── Component ──
-    const component = `import { Section, type SectionProps } from "@numu/theme-sdk";
-
-interface ${pascal}Settings {
-  headline?: string;
-  subtitle?: string;
+function toKebab(s: string): string {
+  return s
+    .replace(/[_\s]+/g, "-")
+    .replace(/([a-z])([A-Z])/g, "$1-$2")
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, "");
 }
 
-export default function ${pascal}({ settings }: SectionProps & { id: string }) {
-  const s = settings as ${pascal}Settings;
+function toPascal(s: string): string {
+  return toKebab(s)
+    .split("-")
+    .filter(Boolean)
+    .map((p) => p[0].toUpperCase() + p.slice(1))
+    .join("");
+}
+
+function humanize(slug: string): string {
+  return slug
+    .split("-")
+    .filter(Boolean)
+    .map((p) => p[0].toUpperCase() + p.slice(1))
+    .join(" ");
+}
+
+function ensureDirOf(p: string): void {
+  fs.mkdirSync(path.dirname(p), { recursive: true });
+}
+
+function emptySectionStub(pascal: string): string {
+  return `import type { SectionProps } from "@numu/theme-sdk";
+
+export default function ${pascal}({ settings }: SectionProps) {
+  const headline = (settings.headline as string) || "${pascal}";
   return (
-    <Section id={(settings as { __id?: string }).__id ?? "${snake}"} type="${snake}">
-      <div className="${snake}">
-        <h2>{s.headline || "${humanize(pascal)}"}</h2>
-        {s.subtitle && <p>{s.subtitle}</p>}
+    <section className="py-16 px-6">
+      <div className="max-w-4xl mx-auto">
+        <h2 className="text-2xl font-semibold">{headline}</h2>
       </div>
-    </Section>
+    </section>
   );
 }
 `;
-    fs.writeFileSync(componentPath, component);
+}
 
-    // ── Schema ──
-    const schema = {
-      type: snake,
-      name: humanize(pascal),
-      locales: { ar: { name: humanize(pascal) } },
-      settings: [
-        {
-          type: "text",
-          id: "headline",
-          label: "Headline",
-          default: humanize(pascal),
-          locales: { ar: { label: "العنوان" } },
-        },
-        {
-          type: "textarea",
-          id: "subtitle",
-          label: "Subtitle",
-          locales: { ar: { label: "العنوان الفرعي" } },
-        },
-      ],
-    };
-    fs.writeFileSync(schemaPath, JSON.stringify(schema, null, 2) + "\n");
+function tryWireMain(themeDir: string, slug: string, pascal: string): void {
+  const mainPath = path.join(themeDir, "src/main.tsx");
+  if (!fs.existsSync(mainPath)) return;
+  const src = fs.readFileSync(mainPath, "utf-8");
+  if (src.includes(`./sections/${pascal}`)) return; // already imported
 
-    console.log(
-      `\n[32m✓[0m Created section "${snake}":`,
-      `\n  - ${path.relative(themeDir, componentPath)}`,
-      `\n  - ${path.relative(themeDir, schemaPath)}`,
-      `\n\n[33m⚠[0m Remember to register it in src/main.tsx:`,
-      `\n    import ${pascal} from "./sections/${snake}";`,
-      `\n    const SECTION_REGISTRY = { ..., ${snake}: ${pascal} };`,
-      `\n\n  And add a preset entry to theme.json's templates if desired.\n`,
-    );
-  });
+  // Insert import after the last existing import.
+  const importLine = `import ${pascal} from "./sections/${pascal}";\n`;
+  const lines = src.split("\n");
+  let lastImportIdx = -1;
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].trimStart().startsWith("import ")) lastImportIdx = i;
+  }
+  if (lastImportIdx >= 0) {
+    lines.splice(lastImportIdx + 1, 0, importLine.trimEnd());
+  } else {
+    lines.unshift(importLine.trimEnd());
+  }
 
-/**
- * `numu-theme add-block <section> <name>` — scaffold a block schema
- * inside an existing section's schema file. Block components themselves
- * are typically rendered inline by the section, so we don't generate a
- * separate React file — just append a block definition to the JSON
- * schema and remind the dev to wire it.
- */
-export const addBlockCommand = new Command("add-block")
-  .description("Scaffold a new block inside an existing section schema")
-  .argument("<section>", "Section type, e.g. 'product_grid'")
-  .argument("<name>", "Block type, e.g. 'feature'")
-  .option("-d, --dir <directory>", "Theme directory", ".")
-  .action((section: string, name: string, options: { dir: string }) => {
-    const themeDir = path.resolve(options.dir);
-    if (!fs.existsSync(path.join(themeDir, "theme.json"))) {
-      console.error(`No theme.json in ${themeDir}.`);
-      process.exit(1);
-    }
-
-    const sectionSnake = toSnakeCase(section);
-    const blockSnake = toSnakeCase(name);
-    const blockHuman = humanize(toPascalCase(name));
-    const schemaPath = path.join(
-      themeDir,
-      "schemas",
-      "sections",
-      `${sectionSnake}.json`,
-    );
-    if (!fs.existsSync(schemaPath)) {
-      console.error(
-        `Section schema not found: schemas/sections/${sectionSnake}.json`,
+  // Insert dispatch — find an existing `section.type === "hero"`
+  // ladder and add a matching branch. If we can't find one we just
+  // leave a TODO comment for the dev.
+  let inserted = false;
+  for (let i = 0; i < lines.length; i++) {
+    if (/section\.type\s*===\s*['"]/.test(lines[i])) {
+      // Insert a parallel branch right above the first match.
+      const indent = lines[i].match(/^\s*/)?.[0] ?? "        ";
+      lines.splice(
+        i,
+        0,
+        `${indent}if (section.type === "${slug}") {`,
+        `${indent}  return <${pascal} key={sectionId} settings={section.settings} />;`,
+        `${indent}}`,
       );
-      console.error(`Create the section first with \`numu-theme add-section ${sectionSnake}\`.`);
-      process.exit(1);
+      inserted = true;
+      break;
     }
-
-    const schema = JSON.parse(fs.readFileSync(schemaPath, "utf-8")) as {
-      blocks?: unknown[];
-      max_blocks?: number;
-    };
-    schema.blocks = schema.blocks ?? [];
-    if (
-      Array.isArray(schema.blocks) &&
-      schema.blocks.some(
-        (b) =>
-          typeof b === "object" && b !== null && (b as { type?: string }).type === blockSnake,
-      )
-    ) {
-      console.error(`Block "${blockSnake}" already exists in this section.`);
-      process.exit(1);
-    }
-    schema.blocks.push({
-      type: blockSnake,
-      name: blockHuman,
-      locales: { ar: { name: blockHuman } },
-      settings: [
-        {
-          type: "text",
-          id: "label",
-          label: "Label",
-          default: blockHuman,
-          locales: { ar: { label: "النص" } },
-        },
-      ],
-    });
-    if (typeof schema.max_blocks !== "number") {
-      schema.max_blocks = 12;
-    }
-    fs.writeFileSync(schemaPath, JSON.stringify(schema, null, 2) + "\n");
-
-    console.log(
-      `\n[32m✓[0m Added block "${blockSnake}" to section "${sectionSnake}":`,
-      `\n  - ${path.relative(themeDir, schemaPath)}`,
-      `\n\n[33m⚠[0m The section component should iterate \`blockOrder\` and render each block by type.`,
-      `\n   Pattern:`,
-      `\n     {(blockOrder ?? []).map((id) => {`,
-      `\n       const b = blocks?.[id];`,
-      `\n       if (!b || b.disabled) return null;`,
-      `\n       if (b.type === "${blockSnake}") return <Block key={id} id={id} type="${blockSnake}">…</Block>;`,
-      `\n       return null;`,
-      `\n     })}\n`,
+  }
+  if (!inserted) {
+    lines.push(
+      "",
+      `// TODO: dispatch the new '${slug}' section type:`,
+      `// if (section.type === "${slug}") return <${pascal} settings={section.settings} />;`,
     );
-  });
-
-// ── helpers ──────────────────────────────────────────────────────────
-
-function toSnakeCase(name: string): string {
-  return name
-    .replace(/([a-z0-9])([A-Z])/g, "$1_$2")
-    .replace(/[\s-]+/g, "_")
-    .toLowerCase();
+  }
+  fs.writeFileSync(mainPath, lines.join("\n"));
 }
 
-function toPascalCase(name: string): string {
-  return name
-    .replace(/[_\s-]+(.)?/g, (_m, c) => (c ? c.toUpperCase() : ""))
-    .replace(/^(.)/, (m) => m.toUpperCase());
-}
-
-function humanize(name: string): string {
-  return name
-    .replace(/([a-z])([A-Z])/g, "$1 $2")
-    .replace(/^./, (m) => m.toUpperCase());
+function tryAddToHomePreset(themeDir: string, slug: string): void {
+  const themeJsonPath = path.join(themeDir, "theme.json");
+  if (!fs.existsSync(themeJsonPath)) return;
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = JSON.parse(fs.readFileSync(themeJsonPath, "utf-8"));
+  } catch {
+    return;
+  }
+  const presets = (parsed.presets as Record<string, unknown>) || {};
+  const templates =
+    (presets.templates as Record<string, Record<string, unknown>>) || {};
+  const home = templates.home;
+  if (!home) return;
+  const sections = (home.sections as Record<string, unknown>) || {};
+  const order = (home.order as string[]) || [];
+  const newKey = `${slug.replace(/-/g, "_")}_1`;
+  // Don't duplicate if the slug is already placed somewhere.
+  for (const existing of Object.values(sections)) {
+    if (
+      existing &&
+      typeof existing === "object" &&
+      (existing as Record<string, unknown>).type === slug
+    )
+      return;
+  }
+  sections[newKey] = { type: slug, settings: {} };
+  order.push(newKey);
+  home.sections = sections;
+  home.order = order;
+  fs.writeFileSync(themeJsonPath, JSON.stringify(parsed, null, 2));
 }
