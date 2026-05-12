@@ -4,7 +4,16 @@ import { saveConfig } from "../utils/config";
 import { apiRequest } from "../utils/api";
 
 interface LoginResponse {
-  access_token?: string;
+  // Backend SuccessResponse.data shape after apiRequest unwraps the envelope:
+  // { user, tokens: { access_token, refresh_token, token_type } }
+  // OR (when 2FA is required): { requires_2fa: true, challenge_token: "..." }
+  tokens?: {
+    access_token?: string;
+    refresh_token?: string;
+    token_type?: string;
+  };
+  requires_2fa?: boolean;
+  challenge_token?: string;
   detail?: string;
 }
 
@@ -47,11 +56,18 @@ export const loginCommand = new Command("login")
         email: answers.email,
         password: answers.password,
       });
-      if (res.status === 200 && res.data?.access_token) {
-        saveConfig({ token: res.data.access_token });
+      if (res.status === 200 && res.data?.requires_2fa) {
+        console.error(
+          "\nLogin failed: this account has 2FA enabled. " +
+            "The CLI cannot complete a 2FA challenge — generate an API token " +
+            "in the dashboard and run `numu-theme login --token <token>`.",
+        );
+        process.exit(1);
+      } else if (res.status === 200 && res.data?.tokens?.access_token) {
+        saveConfig({ token: res.data.tokens.access_token });
         console.log("\n✓ Logged in successfully");
       } else {
-        const detail = res.data?.detail ?? "Invalid credentials";
+        const detail = res.data?.detail ?? `HTTP ${res.status}`;
         console.error(`\nLogin failed: ${detail}`);
         process.exit(1);
       }
