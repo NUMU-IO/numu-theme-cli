@@ -1,0 +1,33 @@
+# Runs the pre-commit hook set on every PR + push to main/dev.
+#
+# Mirrors the local `pre-commit` git hook so what you must fix locally is
+# exactly what gates the PR. Node deps are installed first because the
+# local hooks (typecheck, vitest) call the project's npm scripts.
+name: pre-commit
+
+on:
+  pull_request:
+  push:
+    branches: [main, dev]
+
+jobs:
+  pre-commit:
+    name: Pre-commit Checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm install --no-fund --no-audit
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # pre-commit/action runs `pre-commit run --all-files` and annotates
+      # the PR with any diff the hooks produce.
+      - uses: pre-commit/action@v3.0.1
