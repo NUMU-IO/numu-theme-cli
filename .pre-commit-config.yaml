@@ -1,0 +1,44 @@
+# Pre-commit hooks for @numueg/theme-cli
+#
+# Local setup (one-time):
+#   pip install pre-commit      # or: pipx install pre-commit
+#   pre-commit install          # installs the git hook -> runs on every commit
+#
+# Run manually against everything:
+#   pre-commit run --all-files
+#
+# CI runs the same hooks on every PR via .github/workflows/pre-commit.yml,
+# so a PR can't go green without passing what you'd hit locally.
+repos:
+  # File hygiene (language-agnostic)
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: ["--maxkb=1024"]
+      - id: mixed-line-ending
+        args: ["--fix=lf"]
+
+  # Project checks (TypeScript). `language: system` runs the repo's own
+  # npm scripts so the hook uses the exact tsc/vitest the project pins.
+  # `pass_filenames: false` because both operate on the whole project.
+  - repo: local
+    hooks:
+      - id: typecheck
+        name: tsc --noEmit
+        entry: npm run typecheck
+        language: system
+        pass_filenames: false
+        files: \.(ts|tsx)$
+
+      - id: vitest
+        name: vitest run
+        entry: npm test
+        language: system
+        pass_filenames: false
+        files: \.(ts|tsx)$
