@@ -43,6 +43,9 @@
     "build": "tsup",
     "dev": "tsup --watch",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:smoke": "cross-env RUN_SMOKE=1 vitest run",
     "prepublishOnly": "npm run typecheck && npm run build",
     "pack:dry": "npm pack --dry-run"
   },
@@ -59,7 +62,10 @@
     "@types/archiver": "^6.0.0",
     "@types/node": "^22.0.0",
     "@types/semver": "^7.5.0",
+    "cross-env": "^7.0.3",
+    "tmp-promise": "^3.0.3",
     "tsup": "^8.4.0",
-    "typescript": "^5.8.0"
+    "typescript": "^5.8.0",
+    "vitest": "^4.1.4"
   }
 }
