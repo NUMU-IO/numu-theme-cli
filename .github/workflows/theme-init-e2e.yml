@@ -110,8 +110,12 @@ jobs:
           echo "DEV_PID=$!" >> $GITHUB_ENV
           # Wait up to 30s for the dev server to bind. Polling beats
           # a fixed sleep because cold starts vary by platform.
+          # Use `localhost` (not 127.0.0.1) to match the host Vite binds
+          # to — on the runners `localhost` may resolve to ::1 (IPv6),
+          # so a hard-coded IPv4 literal can't connect even though the
+          # server is up.
           for i in $(seq 1 30); do
-            if curl -fsS http://127.0.0.1:5173/theme.json > /dev/null; then
+            if curl -fsS http://localhost:5173/theme.json > /dev/null; then
               echo "dev server ready after ${i}s"
               break
             fi
@@ -123,15 +127,17 @@ jobs:
         run: |
           # /theme.json — the manifest the host reads to render the
           # customizer. Must include id, name, version.
-          curl -fsS http://127.0.0.1:5173/theme.json | grep -q '"id"'
+          curl -fsS http://localhost:5173/theme.json | grep -q '"id"'
 
           # /theme.js — the bundled entry the host loads via the
           # federation import map. Must export `mount`.
-          curl -fsS http://127.0.0.1:5173/theme.js | grep -q "mount"
+          curl -fsS http://localhost:5173/theme.js | grep -q "mount"
 
           # /sections.json — synthesized from schemas/sections/*.json
-          # by the plugin's middleware. Must be valid JSON.
-          curl -fsS http://127.0.0.1:5173/sections.json | python -c "import sys, json; json.load(sys.stdin)"
+          # by the plugin's middleware. Must be valid JSON. Validate with
+          # node (always present) rather than python (not guaranteed on
+          # every runner / OS in the matrix).
+          curl -fsS http://localhost:5173/sections.json | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{JSON.parse(d);console.log('sections.json is valid JSON')})"
 
       - name: Stop dev server
         if: always()
