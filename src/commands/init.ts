@@ -1,6 +1,33 @@
 import { Command } from "commander";
+import { execSync } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
+
+/**
+ * Best-effort author string for the scaffolded theme.json. `author` is a
+ * required, non-empty field (the marketplace build re-validates it), so an
+ * empty default makes a freshly-scaffolded theme fail `numu-theme check`.
+ * Derive it from the local git identity when available; otherwise fall back
+ * to a non-empty placeholder the dev can edit later.
+ */
+function detectAuthor(): string {
+  const git = (args: string): string => {
+    try {
+      return execSync(`git config ${args}`, {
+        stdio: ["ignore", "pipe", "ignore"],
+      })
+        .toString()
+        .trim();
+    } catch {
+      return "";
+    }
+  };
+  const name = git("user.name");
+  const email = git("user.email");
+  if (name && email) return `${name} <${email}>`;
+  if (name) return name;
+  return "Theme Author";
+}
 
 /**
  * Scaffold a new NUMU theme project. The output is runnable end-to-end:
@@ -54,7 +81,7 @@ export const initCommand = new Command("init")
         {
           id: name.toLowerCase().replace(/[^a-z0-9-]/g, "-"),
           name,
-          author: "",
+          author: detectAuthor(),
           version: "0.1.0",
           layout: "single-column",
           description: `${name} NUMU theme`,
@@ -494,10 +521,10 @@ export default defineConfig({
             build: "numu-theme build",
             check: "numu-theme check",
           },
-          dependencies: { "@numueg/theme-sdk": "^0.1.0" },
+          dependencies: { "@numueg/theme-sdk": "^0.2.0" },
           devDependencies: {
-            "@numueg/theme-cli": "^0.1.0",
-            "@numueg/theme-plugin": "^0.1.0",
+            "@numueg/theme-cli": "^0.2.0",
+            "@numueg/theme-plugin": "^0.2.0",
             "@vitejs/plugin-react": "^4.3.0",
             vite: "^6.0.0",
             typescript: "^5.8.0",

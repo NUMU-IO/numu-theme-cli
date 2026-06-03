@@ -14,6 +14,7 @@ import { addSectionCommand } from "./commands/add-section";
 import { addBlockCommand } from "./commands/add-block";
 import { pullCommand } from "./commands/pull";
 import { deleteCommand } from "./commands/delete";
+import { migrateCommand } from "./commands/migrate";
 
 const program = new Command();
 
@@ -37,5 +38,6 @@ program.addCommand(addSectionCommand);
 program.addCommand(addBlockCommand);
 program.addCommand(pullCommand);
 program.addCommand(deleteCommand);
+program.addCommand(migrateCommand);
 
 program.parse();

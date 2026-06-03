@@ -37,6 +37,8 @@ export interface LintContext {
   locales: Record<string, Record<string, unknown>>;
   /** Map from theme-relative source path → file contents. */
   sources: Record<string, string>;
+  /** Contents of styles.css (theme stylesheet), "" when absent. */
+  styles: string;
 }
 
 export interface LintRule {
@@ -68,6 +70,8 @@ export async function runAllRules(
     () => import("./rules/forbidden-script-tag"),
     () => import("./rules/use-app-no-availability-check"),
     () => import("./rules/manifest-required-fields"),
+    () => import("./rules/contrast-hint"),
+    () => import("./rules/touch-target"),
   ];
 
   const issues: LintIssue[] = [];
@@ -114,6 +118,7 @@ function buildContext(themeDir: string): LintContext {
   const blockSchemas = readSchemaDir(path.join(themeDir, "schemas", "blocks"));
   const locales = readLocales(path.join(themeDir, "locales"));
   const sources = readSources(themeDir);
+  const styles = readText(path.join(themeDir, "styles.css"));
   return {
     themeDir,
     manifest,
@@ -122,6 +127,7 @@ function buildContext(themeDir: string): LintContext {
     blockSchemas,
     locales,
     sources,
+    styles,
   };
 }
 
@@ -131,6 +137,15 @@ function readJson<T>(filePath: string, fallback: T): T {
     return JSON.parse(fs.readFileSync(filePath, "utf-8")) as T;
   } catch {
     return fallback;
+  }
+}
+
+function readText(filePath: string): string {
+  if (!fs.existsSync(filePath)) return "";
+  try {
+    return fs.readFileSync(filePath, "utf-8");
+  } catch {
+    return "";
   }
 }
 
