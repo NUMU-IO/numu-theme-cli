@@ -83,6 +83,7 @@ export const doctorCommand = new Command("doctor")
       const exportsMount =
         /\bexport\s+(?:async\s+)?function\s+mount\b/.test(src) ||
         /\bexport\s+(?:const|let|var)\s+mount\b/.test(src) ||
+        /\bexport\s+(?:const|let|var)\s*\{[^}]*\bmount\b[^}]*\}/.test(src) ||
         /\bexport\s*\{[^}]*\bmount\b[^}]*\}/.test(src);
       if (exportsMount) ok(`${entry} exports mount(el, props)`);
       else
@@ -90,6 +91,49 @@ export const doctorCommand = new Command("doctor")
           `${entry} does NOT export mount(el, props) — BYOT host can't render this theme. ` +
             "See THEME_AUTHORING.md for the contract, or scaffold a fresh theme with `numu-theme init`.",
         );
+
+      // SSR half of the contract (SDK ≥ 0.3). Informational — a theme
+      // without createApp works exactly as before, it just never gets
+      // server-rendered first paint.
+      const exportsCreateApp =
+        /\bexport\s+(?:async\s+)?function\s+createApp\b/.test(src) ||
+        /\bexport\s+(?:const|let|var)\s+createApp\b/.test(src) ||
+        /\bexport\s+(?:const|let|var)\s*\{[^}]*\bcreateApp\b[^}]*\}/.test(src) ||
+        /\bexport\s*\{[^}]*\bcreateApp\b[^}]*\}/.test(src);
+      if (exportsCreateApp) ok(`${entry} exports createApp(ctx) — SSR-capable`);
+      else
+        warn(
+          `${entry} does not export createApp — theme renders client-only (no server-rendered first paint). ` +
+            "Use defineThemeEntry from @numueg/theme-sdk ≥ 0.3 to export mount + createApp from one component.",
+        );
+    }
+
+    // ── 3.1 SSR toolchain versions ──
+    console.log("\nSSR toolchain");
+    try {
+      const pkg = JSON.parse(
+        fs.readFileSync(path.join(themeDir, "package.json"), "utf-8"),
+      ) as { dependencies?: Record<string, string>; devDependencies?: Record<string, string> };
+      const allDeps = { ...pkg.dependencies, ...pkg.devDependencies };
+      const checkMinor = (name: string, minMinor: number) => {
+        const range = allDeps[name];
+        if (!range) {
+          warn(`${name} not in package.json — npm install it`);
+          return;
+        }
+        const m = /(\d+)\.(\d+)\./.exec(range);
+        if (m && Number(m[1]) === 0 && Number(m[2]) < minMinor) {
+          warn(
+            `${name}@${range} predates the SSR contract — bump to ^0.${minMinor}.0 for server rendering`,
+          );
+        } else {
+          ok(`${name}@${range}`);
+        }
+      };
+      checkMinor("@numueg/theme-sdk", 3);
+      checkMinor("@numueg/theme-plugin", 3);
+    } catch {
+      warn("Could not read package.json to verify SDK/plugin versions");
     }
 
     // ── 3.5 Locale files (Phase 2.6) ──
@@ -238,6 +282,16 @@ export const doctorCommand = new Command("doctor")
       );
     } else {
       ok("dist/theme.css present");
+    }
+    const distServer = path.join(themeDir, "dist", "theme.server.js");
+    if (fs.existsSync(distServer)) {
+      ok(
+        `dist/theme.server.js (${(fs.statSync(distServer).size / 1024).toFixed(1)} KB) — SSR artifact present`,
+      );
+    } else if (fs.existsSync(distJs)) {
+      warn(
+        "dist/theme.server.js not found — last build produced a client-only theme (plugin < 0.3, federate:false, or SSR pass failed)",
+      );
     }
 
     // ── 5. CLI auth ──
