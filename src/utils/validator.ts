@@ -121,5 +121,65 @@ export function validateTheme(themeDir: string): ValidationResult {
     warnings.push("theme.json has no presets — merchants will start with an empty page");
   }
 
+  // Rule 10: preset → section-type coverage + required-template coverage.
+  //
+  // Mirrors the platform gate (@numueg/theme-sdk validateManifest + the
+  // backend theme-contract check): every section type a preset references must
+  // ship a schema (else the storefront drops it at render), and the canonical
+  // page templates should have presets (else the storefront falls back to a
+  // built-in — a warning, not an error).
+  const REQUIRED_TEMPLATES = [
+    "home",
+    "product",
+    "collection",
+    "cart",
+    "page",
+    "search",
+    "404",
+  ];
+  if (themeJson.presets && typeof themeJson.presets === "object") {
+    const referenced = new Set<string>();
+    for (const bucket of [
+      themeJson.presets.templates,
+      themeJson.presets.section_groups,
+    ]) {
+      if (!bucket || typeof bucket !== "object") continue;
+      for (const entry of Object.values(bucket as Record<string, any>)) {
+        const sections = (entry as any)?.sections;
+        const instances = Array.isArray(sections)
+          ? sections
+          : sections && typeof sections === "object"
+            ? Object.values(sections)
+            : [];
+        for (const inst of instances as any[]) {
+          if (inst && typeof inst.type === "string") {
+            referenced.add(inst.type.toLowerCase());
+          }
+        }
+      }
+    }
+    for (const type of referenced) {
+      if (!schemaNames.has(type)) {
+        errors.push(
+          `theme.json preset references section type "${type}" but there is no ` +
+            `schemas/sections/${type}.json — the storefront drops unknown sections at render.`,
+        );
+      }
+    }
+    const templates =
+      themeJson.presets.templates &&
+      typeof themeJson.presets.templates === "object"
+        ? themeJson.presets.templates
+        : {};
+    for (const tpl of REQUIRED_TEMPLATES) {
+      if (!(tpl in templates)) {
+        warnings.push(
+          `theme.json has no preset for the "${tpl}" template — the storefront ` +
+            "will use its built-in fallback.",
+        );
+      }
+    }
+  }
+
   return { valid: errors.length === 0, errors, warnings };
 }

@@ -84,6 +84,19 @@ export const buildCommand = new Command("build")
             "⚠ Bundle exceeds 5MB limit — optimize before submitting to marketplace",
           );
         }
+
+        // SSR artifact report (plugin ≥ 0.3 emits dist/theme.server.js for
+        // federated themes whose entry exports createApp).
+        const serverBundle = path.join(distDir, "theme.server.js");
+        if (fs.existsSync(serverBundle)) {
+          const kb = (fs.statSync(serverBundle).size / 1024).toFixed(1);
+          console.log(`SSR bundle: theme.server.js (${kb} KB) — hosts will server-render this theme`);
+        } else {
+          console.log(
+            "SSR bundle: not emitted — theme ships client-only. " +
+              "Export `createApp` via defineThemeEntry (SDK ≥ 0.3) and build with federate:true to enable server rendering.",
+          );
+        }
       }
 
       console.log("\n✓ Build complete");
