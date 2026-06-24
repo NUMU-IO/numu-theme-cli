@@ -88,6 +88,19 @@ jobs:
           test -f dist/theme.css
           test -f dist/manifest.json
           test -f dist/import-map.json
+          # SSR bundle (the render harness verifies it):
+          test -f dist/theme.server.js
+
+      # ── Render verification (Phase 2) ──────────────────────────────
+      # SSR-render every template against fixtures via the theme's own
+      # @numueg/theme-sdk /verify harness; fails on any template that
+      # throws or renders empty. Catches runtime breakage the structural
+      # build gate can't.
+      - name: Render-verify the scaffolded theme
+        shell: bash
+        run: |
+          cd "$RUNNER_TEMP/demo-theme"
+          numu-theme verify --no-build
 
       # ── Doctor (Phase 2.6 contract checks) ─────────────────────────
       - name: Run doctor (no backend; warnings allowed, no errors)

@@ -416,11 +416,13 @@ export default defineConfig({
             dev: "numu-theme dev",
             build: "numu-theme build",
             check: "numu-theme check",
+            // Render-verify every template against fixtures (Phase 2).
+            verify: "numu-theme verify",
           },
-          dependencies: { "@numueg/theme-sdk": "^0.3.0" },
+          dependencies: { "@numueg/theme-sdk": "^0.4.0" },
           devDependencies: {
-            "@numueg/theme-cli": "^0.3.0",
-            "@numueg/theme-plugin": "^0.3.0",
+            "@numueg/theme-cli": "^0.4.0",
+            "@numueg/theme-plugin": "^0.4.0",
             "@vitejs/plugin-react": "^4.3.0",
             vite: "^6.0.0",
             typescript: "^5.8.0",
