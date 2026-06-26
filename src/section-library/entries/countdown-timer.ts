@@ -5,7 +5,16 @@ export const countdownTimer: SectionLibraryEntry = {
   name: "Countdown Timer",
   description: "Sale-end countdown — DD:HH:MM:SS ticking to a merchant-set target date",
   component: `import type { SectionProps } from "@numueg/theme-sdk";
+import { useLocale } from "@numueg/theme-sdk";
 import { useEffect, useState } from "react";
+
+// Bilingual AR/EN text without a shared import (keeps the snippet forkable).
+function useT() {
+  const locale = useLocale();
+  const isAr =
+    typeof locale === "string" && locale.toLowerCase().startsWith("ar");
+  return (en: string, ar: string) => (isAr ? ar : en);
+}
 
 function diff(target: number) {
   const ms = Math.max(0, target - Date.now());
@@ -17,14 +26,15 @@ function diff(target: number) {
 }
 
 export default function CountdownTimer({ settings }: SectionProps) {
-  const heading = (settings.heading as string) || "Sale ends in";
+  const t = useT();
+  const heading = (settings.heading as string) || t("Sale ends in", "ينتهي العرض خلال");
   const targetIso = settings.end_at as string | undefined;
   const target = targetIso ? Date.parse(targetIso) : 0;
-  const [t, setT] = useState(() => diff(target));
+  const [time, setTime] = useState(() => diff(target));
 
   useEffect(() => {
     if (!target) return;
-    const id = window.setInterval(() => setT(diff(target)), 1000);
+    const id = window.setInterval(() => setTime(diff(target)), 1000);
     return () => window.clearInterval(id);
   }, [target]);
 
@@ -33,17 +43,17 @@ export default function CountdownTimer({ settings }: SectionProps) {
   return (
     <section className="py-12 px-6 bg-red-50 text-center">
       <h2 className="text-xl md:text-2xl font-semibold mb-4">{heading}</h2>
-      {t.done ? (
-        <p className="text-lg text-red-700">The sale has ended.</p>
+      {time.done ? (
+        <p className="text-lg text-red-700">{t("The sale has ended.", "انتهى العرض.")}</p>
       ) : (
         <div className="flex justify-center gap-4 md:gap-6 font-mono">
           {[
-            { label: "days", value: t.d },
-            { label: "hrs", value: t.h },
-            { label: "min", value: t.m },
-            { label: "sec", value: t.s },
+            { key: "days", label: t("days", "أيام"), value: time.d },
+            { key: "hrs", label: t("hrs", "ساعات"), value: time.h },
+            { key: "min", label: t("min", "دقائق"), value: time.m },
+            { key: "sec", label: t("sec", "ثوانٍ"), value: time.s },
           ].map((u) => (
-            <div key={u.label} className="bg-white rounded-lg p-3 min-w-[64px] shadow-sm">
+            <div key={u.key} className="bg-white rounded-lg p-3 min-w-[64px] shadow-sm">
               <div className="text-2xl md:text-3xl font-bold">{String(u.value).padStart(2, "0")}</div>
               <div className="text-xs text-gray-500 uppercase">{u.label}</div>
             </div>

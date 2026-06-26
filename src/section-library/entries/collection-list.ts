@@ -5,17 +5,25 @@ export const collectionList: SectionLibraryEntry = {
   name: "Collection List",
   description: "Grid of collection cards (image + name) linking to each collection's PLP",
   component: `import type { SectionProps } from "@numueg/theme-sdk";
-import { CollectionCard, useCollections } from "@numueg/theme-sdk";
+import { CollectionCard, useCollections, useLocale } from "@numueg/theme-sdk";
+
+// Bilingual AR/EN text without a shared import (keeps the snippet forkable).
+function useT() {
+  const locale = useLocale();
+  const isAr =
+    typeof locale === "string" && locale.toLowerCase().startsWith("ar");
+  return (en: string, ar: string) => (isAr ? ar : en);
+}
 
 export default function CollectionListSection({ settings }: SectionProps) {
+  const t = useT();
   const ids = (settings.collection_ids as string[]) || [];
   const limit = (settings.limit as number) || 6;
-  const heading = (settings.heading as string) || "Shop by collection";
-  const { collections, loading } = useCollections({
-    ids: ids.length > 0 ? ids : undefined,
-    limit: ids.length > 0 ? undefined : limit,
-  });
-  if (loading) return <section className="py-16 text-center text-gray-500">Loading…</section>;
+  const heading = (settings.heading as string) || t("Shop by collection", "تسوّق حسب المجموعة");
+  const { collections: all, loading } = useCollections({ fetchIfMissing: true, limit });
+  const collections =
+    ids.length > 0 ? all.filter((c) => ids.includes(c.id)) : all;
+  if (loading) return <section className="py-16 text-center text-gray-500">{t("Loading…", "جارٍ التحميل…")}</section>;
   if (!collections.length) return null;
   return (
     <section className="py-16 px-6 max-w-7xl mx-auto">

@@ -102,8 +102,11 @@ export const addSectionCommand = new Command("add-section")
         };
       }
 
-      // 1. component
-      const componentPath = path.join(themeDir, "src/sections", `${pascal}.tsx`);
+      // 1. component — file is named by the slug (not PascalCase) so its
+      // basename matches the schema's (`schemas/sections/<slug>.json`). The
+      // validator's registry↔schema sync rule compares lowercased basenames,
+      // so a `Foo.tsx` + `foo-bar.json` pair would otherwise fail `check`.
+      const componentPath = path.join(themeDir, "src/sections", `${slug}.tsx`);
       ensureDirOf(componentPath);
       if (fs.existsSync(componentPath)) {
         console.error(`Already exists: ${componentPath}`);
@@ -123,7 +126,7 @@ export const addSectionCommand = new Command("add-section")
       tryAddToHomePreset(themeDir, slug);
 
       console.log(`✔ Created section '${slug}'.`);
-      console.log(`  • src/sections/${pascal}.tsx`);
+      console.log(`  • src/sections/${slug}.tsx`);
       console.log(`  • schemas/sections/${slug}.json`);
       console.log(
         options.fromLibrary
@@ -182,10 +185,12 @@ function tryWireMain(themeDir: string, slug: string, pascal: string): void {
   const mainPath = path.join(themeDir, "src/main.tsx");
   if (!fs.existsSync(mainPath)) return;
   const src = fs.readFileSync(mainPath, "utf-8");
-  if (src.includes(`./sections/${pascal}`)) return; // already imported
+  if (src.includes(`./sections/${slug}"`)) return; // already imported
 
-  // Insert import after the last existing import.
-  const importLine = `import ${pascal} from "./sections/${pascal}";\n`;
+  // Insert import after the last existing import. The file lives at
+  // ./sections/<slug> (basename matches the schema); the default export keeps
+  // its PascalCase identifier.
+  const importLine = `import ${pascal} from "./sections/${slug}";\n`;
   const lines = src.split("\n");
   let lastImportIdx = -1;
   for (let i = 0; i < lines.length; i++) {
@@ -195,6 +200,18 @@ function tryWireMain(themeDir: string, slug: string, pascal: string): void {
     lines.splice(lastImportIdx + 1, 0, importLine.trimEnd());
   } else {
     lines.unshift(importLine.trimEnd());
+  }
+
+  // Preferred (standard scaffold): a `SECTION_REGISTRY = { ... }` map keyed by
+  // section type. Insert a `"slug": Pascal,` entry right after the opening
+  // brace so the section dispatches by type.
+  for (let i = 0; i < lines.length; i++) {
+    if (/SECTION_REGISTRY[^=]*=\s*\{/.test(lines[i])) {
+      const indent = (lines[i].match(/^\s*/)?.[0] ?? "") + "  ";
+      lines.splice(i + 1, 0, `${indent}"${slug}": ${pascal},`);
+      fs.writeFileSync(mainPath, lines.join("\n"));
+      return;
+    }
   }
 
   // Insert dispatch — find an existing `section.type === "hero"`

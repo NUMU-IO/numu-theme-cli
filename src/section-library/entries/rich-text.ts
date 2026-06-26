@@ -5,9 +5,18 @@ export const richText: SectionLibraryEntry = {
   name: "Rich Text",
   description: "Merchant-edited rich text block — title + paragraph(s) + optional CTA",
   component: `import type { SectionProps } from "@numueg/theme-sdk";
-import { RichText } from "@numueg/theme-sdk";
+import { RichText, useLocale } from "@numueg/theme-sdk";
+
+// Bilingual AR/EN text without a shared import (keeps the snippet forkable).
+function useT() {
+  const locale = useLocale();
+  const isAr =
+    typeof locale === "string" && locale.toLowerCase().startsWith("ar");
+  return (en: string, ar: string) => (isAr ? ar : en);
+}
 
 export default function RichTextSection({ settings }: SectionProps) {
+  const t = useT();
   const heading = (settings.heading as string) || "";
   const body = (settings.body as string) || "";
   const align = (settings.alignment as string) || "left";

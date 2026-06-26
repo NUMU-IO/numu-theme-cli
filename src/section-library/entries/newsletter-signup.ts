@@ -5,13 +5,22 @@ export const newsletterSignup: SectionLibraryEntry = {
   name: "Newsletter Signup",
   description: "Email capture form with merchant-supplied heading + consent copy",
   component: `import type { SectionProps } from "@numueg/theme-sdk";
-import { Form } from "@numueg/theme-sdk";
+import { Form, useLocale } from "@numueg/theme-sdk";
+
+// Bilingual AR/EN text without a shared import (keeps the snippet forkable).
+function useT() {
+  const locale = useLocale();
+  const isAr =
+    typeof locale === "string" && locale.toLowerCase().startsWith("ar");
+  return (en: string, ar: string) => (isAr ? ar : en);
+}
 
 export default function NewsletterSignup({ settings }: SectionProps) {
-  const heading = (settings.heading as string) || "Stay in touch";
+  const t = useT();
+  const heading = (settings.heading as string) || t("Stay in touch", "ابقَ على تواصل");
   const subheading = (settings.subheading as string) || "";
-  const placeholder = (settings.placeholder as string) || "Email address";
-  const buttonLabel = (settings.button_label as string) || "Subscribe";
+  const placeholder = (settings.placeholder as string) || t("Email address", "البريد الإلكتروني");
+  const buttonLabel = (settings.button_label as string) || t("Subscribe", "اشتراك");
   const consent = (settings.consent_text as string) || "";
 
   return (

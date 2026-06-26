@@ -5,11 +5,21 @@ export const announcementBar: SectionLibraryEntry = {
   name: "Announcement Bar",
   description: "Thin top-of-page bar for promos / shipping notices, optionally dismissible",
   component: `import type { SectionProps } from "@numueg/theme-sdk";
+import { useLocale } from "@numueg/theme-sdk";
 import { useEffect, useState } from "react";
 
 const DISMISS_KEY = "numu_announcement_dismissed";
 
+// Bilingual AR/EN text without a shared import (keeps the snippet forkable).
+function useT() {
+  const locale = useLocale();
+  const isAr =
+    typeof locale === "string" && locale.toLowerCase().startsWith("ar");
+  return (en: string, ar: string) => (isAr ? ar : en);
+}
+
 export default function AnnouncementBar({ settings }: SectionProps) {
+  const t = useT();
   const message = (settings.message as string) || "";
   const linkLabel = settings.link_label as string | undefined;
   const linkHref = (settings.link_href as string) || "/";
@@ -24,7 +34,7 @@ export default function AnnouncementBar({ settings }: SectionProps) {
   if (!message || dismissed) return null;
 
   return (
-    <div role="region" aria-label="Announcement" className="bg-gray-900 text-white text-sm">
+    <div role="region" aria-label={t("Announcement", "إعلان")} className="bg-gray-900 text-white text-sm">
       <div className="max-w-7xl mx-auto px-4 py-2 flex items-center justify-center gap-3 relative">
         <p>
           {message}
@@ -38,7 +48,7 @@ export default function AnnouncementBar({ settings }: SectionProps) {
         {dismissible && (
           <button
             type="button"
-            aria-label="Dismiss announcement"
+            aria-label={t("Dismiss announcement", "إغلاق الإعلان")}
             onClick={() => {
               setDismissed(true);
               try { window.sessionStorage.setItem(DISMISS_KEY, "1"); } catch {}

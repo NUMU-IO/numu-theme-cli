@@ -5,9 +5,19 @@ export const contactMap: SectionLibraryEntry = {
   name: "Contact + Map",
   description: "Two-column contact info (address / phone / hours) + embedded map iframe",
   component: `import type { SectionProps } from "@numueg/theme-sdk";
+import { useLocale } from "@numueg/theme-sdk";
+
+// Bilingual AR/EN text without a shared import (keeps the snippet forkable).
+function useT() {
+  const locale = useLocale();
+  const isAr =
+    typeof locale === "string" && locale.toLowerCase().startsWith("ar");
+  return (en: string, ar: string) => (isAr ? ar : en);
+}
 
 export default function ContactMap({ settings }: SectionProps) {
-  const heading = (settings.heading as string) || "Visit us";
+  const t = useT();
+  const heading = (settings.heading as string) || t("Visit us", "زورونا");
   const address = (settings.address as string) || "";
   const phone = (settings.phone as string) || "";
   const hours = (settings.hours as string) || "";
@@ -20,19 +30,19 @@ export default function ContactMap({ settings }: SectionProps) {
         <div className="space-y-6">
           {address && (
             <div>
-              <h3 className="font-semibold mb-1">Address</h3>
+              <h3 className="font-semibold mb-1">{t("Address", "العنوان")}</h3>
               <p className="text-gray-700 whitespace-pre-line">{address}</p>
             </div>
           )}
           {phone && (
             <div>
-              <h3 className="font-semibold mb-1">Phone</h3>
+              <h3 className="font-semibold mb-1">{t("Phone", "الهاتف")}</h3>
               <a href={\`tel:\${phone}\`} className="text-blue-700 hover:underline">{phone}</a>
             </div>
           )}
           {hours && (
             <div>
-              <h3 className="font-semibold mb-1">Hours</h3>
+              <h3 className="font-semibold mb-1">{t("Hours", "ساعات العمل")}</h3>
               <p className="text-gray-700 whitespace-pre-line">{hours}</p>
             </div>
           )}
@@ -41,14 +51,14 @@ export default function ContactMap({ settings }: SectionProps) {
           {mapUrl ? (
             <iframe
               src={mapUrl}
-              title="Map"
+              title={t("Map", "خريطة")}
               loading="lazy"
               className="w-full h-full border-0"
               referrerPolicy="no-referrer-when-downgrade"
               allowFullScreen
             />
           ) : (
-            <div className="flex items-center justify-center h-full text-gray-400">Set a map embed URL</div>
+            <div className="flex items-center justify-center h-full text-gray-400">{t("Set a map embed URL", "أضف رابط تضمين الخريطة")}</div>
           )}
         </div>
       </div>

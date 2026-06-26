@@ -44,6 +44,9 @@ import { announcementBar } from "./entries/announcement-bar";
 import { countdownTimer } from "./entries/countdown-timer";
 import { featuredBlogPosts } from "./entries/featured-blog-posts";
 import { contactMap } from "./entries/contact-map";
+import { productDetails } from "./entries/product-details";
+import { frequentlyBought } from "./entries/frequently-bought";
+import { sizeGuide } from "./entries/size-guide";
 
 export const LIBRARY: SectionLibraryEntry[] = [
   heroWithCta,
@@ -61,6 +64,9 @@ export const LIBRARY: SectionLibraryEntry[] = [
   countdownTimer,
   featuredBlogPosts,
   contactMap,
+  productDetails,
+  frequentlyBought,
+  sizeGuide,
 ];
 
 export function findEntry(slug: string): SectionLibraryEntry | undefined {

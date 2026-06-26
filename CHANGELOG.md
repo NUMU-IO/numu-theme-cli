@@ -4,6 +4,28 @@ All notable changes to `@numueg/theme-cli` are documented here. The format is ba
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-06-26
+
+### Changed
+
+- **`numu-theme init` now scaffolds the "NUMU Starter"** — a complete, premium, production-shaped theme instead of a single Hero stub. Every new theme inherits the platform standards by default:
+  - Bilingual (AR/EN) section copy via an inline `useT()` helper (`src/lib/i18n`).
+  - Money coerced with `Number()` and images resolved defensively (`src/lib/format`) so string-priced API rows never concatenate.
+  - Inline field editing through `<EditableText>`; the entry forwards each section's id so the customizer can wire edits.
+  - Brand resolves to the live store name (the placeholder is treated as unset), multi-currency + a language switcher in the header, and an always-on footer ticker.
+  - A size-aware product page: sizes from the product's size chart render as required pickers that gate add-to-cart, plus an embedded "frequently bought together" bundle.
+  - Header/footer section groups + home/product/products/cart/search templates, a full `styles.css`, and the robust registry-based `src/main.tsx` (group + template rendering with preset fallback).
+- Scaffold template files now ship in the package (`templates/scaffold`) and are copied + token-substituted at init time (no more giant embedded strings).
+
+### Added
+
+- **Section library**: `product-details` (size-chart-aware PDP that gates add-to-cart on a size pick), `frequently-bought` (related-product bundle with one-tap add-all), and `size-guide` (size-chart trigger + modal). Existing entries are now bilingual via the same `useT()` standard.
+
+### Fixed
+
+- **`add-section`** now wires sections into the registry-based `main.tsx` (`SECTION_REGISTRY`), and writes the component file with a slug-based name so its basename matches the schema — multi-word library slugs (e.g. `featured-products`) no longer fail `numu-theme check`.
+- Library entries `featured-products` / `collection-list` updated for the current SDK (`useProducts`/`useCollections` no longer accept `ids` — filter client-side), and `multi-column` now renders blocks via the correct `{id → instance}` map + `<Block id type>` contract.
+
 ## [0.1.0] - 2026-05-11
 
 First public release. Full surface documented at [numueg.app/docs/cli-plugin/overview](https://numueg.app/docs/cli-plugin/overview).
