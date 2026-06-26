@@ -5,6 +5,7 @@ export const featuredBlogPosts: SectionLibraryEntry = {
   name: "Featured Blog Posts",
   description: "3-up grid of recent blog articles with cover image + title + excerpt",
   component: `import type { SectionProps } from "@numueg/theme-sdk";
+import { useLocale } from "@numueg/theme-sdk";
 
 interface Article {
   handle: string;
@@ -14,8 +15,17 @@ interface Article {
   cover_image?: string | null;
 }
 
+// Bilingual AR/EN text without a shared import (keeps the snippet forkable).
+function useT() {
+  const locale = useLocale();
+  const isAr =
+    typeof locale === "string" && locale.toLowerCase().startsWith("ar");
+  return (en: string, ar: string) => (isAr ? ar : en);
+}
+
 export default function FeaturedBlogPosts({ settings }: SectionProps) {
-  const heading = (settings.heading as string) || "From the blog";
+  const t = useT();
+  const heading = (settings.heading as string) || t("From the blog", "من المدونة");
   // Themes can pass articles in via page.data (the blogs route ships
   // them on /[domain]/blogs). On other pages, this section needs a
   // merchant-supplied list of links in the schema.

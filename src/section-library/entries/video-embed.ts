@@ -5,8 +5,18 @@ export const videoEmbed: SectionLibraryEntry = {
   name: "Video Embed",
   description: "Responsive 16:9 video (YouTube / Vimeo / self-hosted MP4)",
   component: `import type { SectionProps } from "@numueg/theme-sdk";
+import { useLocale } from "@numueg/theme-sdk";
+
+// Bilingual AR/EN text without a shared import (keeps the snippet forkable).
+function useT() {
+  const locale = useLocale();
+  const isAr =
+    typeof locale === "string" && locale.toLowerCase().startsWith("ar");
+  return (en: string, ar: string) => (isAr ? ar : en);
+}
 
 export default function VideoEmbed({ settings }: SectionProps) {
+  const t = useT();
   const heading = (settings.heading as string) || "";
   const url = (settings.video_url as string) || "";
   const poster = (settings.poster as string) || undefined;
@@ -22,14 +32,14 @@ export default function VideoEmbed({ settings }: SectionProps) {
           ) : (
             <iframe
               src={url}
-              title={heading || "Video"}
+              title={heading || t("Video", "فيديو")}
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
               allowFullScreen
               className="w-full h-full border-0"
             />
           )
         ) : (
-          <div className="flex items-center justify-center h-full text-white/60">Set a video URL</div>
+          <div className="flex items-center justify-center h-full text-white/60">{t("Set a video URL", "أدخل رابط الفيديو")}</div>
         )}
       </div>
     </section>

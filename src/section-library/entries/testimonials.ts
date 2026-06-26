@@ -5,9 +5,19 @@ export const testimonials: SectionLibraryEntry = {
   name: "Testimonials",
   description: "Customer reviews carousel with quote, author, role, optional photo",
   component: `import type { SectionProps, BlockProps } from "@numueg/theme-sdk";
+import { useLocale } from "@numueg/theme-sdk";
+
+// Bilingual AR/EN text without a shared import (keeps the snippet forkable).
+function useT() {
+  const locale = useLocale();
+  const isAr =
+    typeof locale === "string" && locale.toLowerCase().startsWith("ar");
+  return (en: string, ar: string) => (isAr ? ar : en);
+}
 
 export default function Testimonials({ settings, blocks }: SectionProps & { blocks?: BlockProps[] }) {
-  const heading = (settings.heading as string) || "What our customers say";
+  const t = useT();
+  const heading = (settings.heading as string) || t("What our customers say", "آراء عملائنا");
   return (
     <section className="py-16 px-6 bg-gray-50">
       <div className="max-w-5xl mx-auto">

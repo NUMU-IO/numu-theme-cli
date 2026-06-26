@@ -4,10 +4,19 @@ export const multiColumn: SectionLibraryEntry = {
   slug: "multi-column",
   name: "Multi-column",
   description: "2 / 3 / 4-column features grid with icon + heading + text per column",
-  component: `import type { SectionProps, BlockProps } from "@numueg/theme-sdk";
-import { Block } from "@numueg/theme-sdk";
+  component: `import type { SectionProps } from "@numueg/theme-sdk";
+import { Block, useLocale } from "@numueg/theme-sdk";
 
-export default function MultiColumn({ settings, blocks }: SectionProps & { blocks?: BlockProps[] }) {
+// Bilingual AR/EN text without a shared import (keeps the snippet forkable).
+function useT() {
+  const locale = useLocale();
+  const isAr =
+    typeof locale === "string" && locale.toLowerCase().startsWith("ar");
+  return (en: string, ar: string) => (isAr ? ar : en);
+}
+
+export default function MultiColumn({ settings, blocks, blockOrder }: SectionProps) {
+  const t = useT();
   const heading = (settings.heading as string) || "";
   const cols = (settings.columns as number) || 3;
   const gridCols =
@@ -15,31 +24,38 @@ export default function MultiColumn({ settings, blocks }: SectionProps & { block
     cols === 4 ? "md:grid-cols-2 lg:grid-cols-4" :
     "md:grid-cols-3";
 
+  // Blocks arrive as a {id: instance} map + an order array — mirror the
+  // section→block render: walk the order and look each id up.
+  const map = blocks || {};
+  const order = blockOrder || Object.keys(map);
+
   return (
-    <section className="py-16 px-6 max-w-7xl mx-auto">
+    <section className="py-16 px-6 max-w-7xl mx-auto" aria-label={t("Features", "المميزات")}>
       {heading && (
         <h2 className="text-2xl md:text-3xl font-semibold text-center mb-12">{heading}</h2>
       )}
       <div className={\`grid grid-cols-1 \${gridCols} gap-10\`}>
-        {(blocks || []).map((block, i) => (
-          <Block key={i} block={block}>
-            {block.type === "column" && (
+        {order.map((id) => {
+          const b = map[id];
+          if (!b || b.type !== "column") return null;
+          return (
+            <Block key={id} id={id} type={b.type}>
               <div className="text-center">
-                {block.settings.icon ? (
+                {b.settings.icon ? (
                   <img
-                    src={block.settings.icon as string}
+                    src={b.settings.icon as string}
                     alt=""
                     className="w-12 h-12 mx-auto mb-4"
                   />
                 ) : null}
                 <h3 className="text-lg font-semibold mb-2">
-                  {(block.settings.title as string) || ""}
+                  {(b.settings.title as string) || ""}
                 </h3>
-                <p className="text-gray-600">{(block.settings.text as string) || ""}</p>
+                <p className="text-gray-600">{(b.settings.text as string) || ""}</p>
               </div>
-            )}
-          </Block>
-        ))}
+            </Block>
+          );
+        })}
       </div>
     </section>
   );

@@ -5,9 +5,18 @@ export const imageWithText: SectionLibraryEntry = {
   name: "Image with Text",
   description: "Two-column section: image on one side, headline + body + CTA on the other",
   component: `import type { SectionProps } from "@numueg/theme-sdk";
-import { useDirection } from "@numueg/theme-sdk";
+import { useDirection, useLocale } from "@numueg/theme-sdk";
+
+// Bilingual AR/EN text without a shared import (keeps the snippet forkable).
+function useT() {
+  const locale = useLocale();
+  const isAr =
+    typeof locale === "string" && locale.toLowerCase().startsWith("ar");
+  return (en: string, ar: string) => (isAr ? ar : en);
+}
 
 export default function ImageWithText({ settings }: SectionProps) {
+  const t = useT();
   const dir = useDirection();
   const image = settings.image as string | undefined;
   const layout = (settings.image_position as string) || "left";

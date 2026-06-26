@@ -5,9 +5,19 @@ export const faqAccordion: SectionLibraryEntry = {
   name: "FAQ Accordion",
   description: "Collapsible question/answer pairs using native <details>/<summary>",
   component: `import type { SectionProps, BlockProps } from "@numueg/theme-sdk";
+import { useLocale } from "@numueg/theme-sdk";
+
+// Bilingual AR/EN text without a shared import (keeps the snippet forkable).
+function useT() {
+  const locale = useLocale();
+  const isAr =
+    typeof locale === "string" && locale.toLowerCase().startsWith("ar");
+  return (en: string, ar: string) => (isAr ? ar : en);
+}
 
 export default function FaqAccordion({ settings, blocks }: SectionProps & { blocks?: BlockProps[] }) {
-  const heading = (settings.heading as string) || "Frequently asked questions";
+  const t = useT();
+  const heading = (settings.heading as string) || t("Frequently asked questions", "الأسئلة الشائعة");
   return (
     <section className="py-16 px-6 max-w-3xl mx-auto">
       <h2 className="text-2xl md:text-3xl font-semibold text-center mb-10">{heading}</h2>

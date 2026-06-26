@@ -5,8 +5,18 @@ export const logoCloud: SectionLibraryEntry = {
   name: "Logo Cloud",
   description: "Row of partner / press / payment logos in grayscale with hover restore",
   component: `import type { SectionProps, BlockProps } from "@numueg/theme-sdk";
+import { useLocale } from "@numueg/theme-sdk";
+
+// Bilingual AR/EN text without a shared import (keeps the snippet forkable).
+function useT() {
+  const locale = useLocale();
+  const isAr =
+    typeof locale === "string" && locale.toLowerCase().startsWith("ar");
+  return (en: string, ar: string) => (isAr ? ar : en);
+}
 
 export default function LogoCloud({ settings, blocks }: SectionProps & { blocks?: BlockProps[] }) {
+  const t = useT();
   const heading = (settings.heading as string) || "";
   return (
     <section className="py-12 px-6 bg-white">
