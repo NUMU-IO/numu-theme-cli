@@ -77,6 +77,14 @@ export default function ProductDetails({ settings }: SectionProps) {
   const productName = product.name;
   const productId = product.id;
 
+  // Cap the quantity stepper to the selected variant's stock (the backend
+  // enforces this too). No per-variant stock ⇒ unbounded.
+  const stockCap =
+    activeVariant && typeof activeVariant.inventory_quantity === "number"
+      ? Math.max(0, activeVariant.inventory_quantity)
+      : Infinity;
+  const maxQty = stockCap === Infinity ? Infinity : Math.max(1, stockCap);
+
   const purchasable =
     product.in_stock &&
     (activeVariant?.is_in_stock ?? true) &&
@@ -97,7 +105,7 @@ export default function ProductDetails({ settings }: SectionProps) {
           .join("\\n");
         await updateNote((kept ? kept + "\\n" : "") + tag + pickedSize);
       }
-      await addItem(productId, activeVariant?.id, qty);
+      await addItem(productId, activeVariant?.id, Math.min(qty, maxQty));
     } finally {
       setPending(false);
     }
@@ -178,11 +186,11 @@ export default function ProductDetails({ settings }: SectionProps) {
         <div className="flex items-center gap-3 mb-5">
           <span className="text-sm font-semibold">{t("Quantity", "الكمية")}</span>
           <div className="inline-flex items-center border rounded-md">
-            <button type="button" className="px-3 py-2" onClick={() => setQty((q) => Math.max(1, q - 1))}>
+            <button type="button" className="px-3 py-2 disabled:opacity-40" disabled={qty <= 1} onClick={() => setQty((q) => Math.max(1, q - 1))}>
               −
             </button>
-            <span className="px-3">{qty}</span>
-            <button type="button" className="px-3 py-2" onClick={() => setQty((q) => q + 1)}>
+            <span className="px-3">{Math.min(qty, maxQty)}</span>
+            <button type="button" className="px-3 py-2 disabled:opacity-40" disabled={qty >= maxQty} onClick={() => setQty((q) => Math.min(maxQty, q + 1))}>
               +
             </button>
           </div>
