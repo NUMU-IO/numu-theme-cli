@@ -1,6 +1,6 @@
 {
   "name": "@numueg/theme-cli",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "CLI for developing, validating, building, linting, and publishing NUMU storefront themes",
   "keywords": [
     "numu",
