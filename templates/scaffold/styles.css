@@ -6,13 +6,21 @@
    =========================================================================== */
 
 .nt {
-  /* Palette — overridable from global_settings via inline --nt-* vars */
-  --nt-black: #000000;
+  /* Palette — driven by the merchant's global theme settings. Each token
+     reads the canonical --theme-* custom property the SDK writes from
+     global_settings (colors → --theme-color-<role>; fonts →
+     --theme-font-<role> for known tokens, else --theme-<id>_font), and falls
+     back to this theme's static default so the storefront looks identical
+     before any customization. Editing a color or font in the customizer
+     re-paints every rule that uses these --nt-* tokens. */
+  --nt-primary: var(--theme-color-primary, #000000);
+  --nt-black: var(--theme-color-primary, #000000);
   --nt-white: #ffffff;
-  --nt-bg: #efeeed;
-  --nt-fg: #000000;
+  --nt-bg: var(--theme-color-background, #efeeed);
+  --nt-fg: var(--theme-color-text, #000000);
   --nt-card: #ffffff;
-  --nt-accent: #0099ff;
+  --nt-accent: var(--theme-color-accent, #0099ff);
+  --nt-button: var(--theme-color-button, var(--nt-primary));
   --nt-charcoal: #383838;
   --nt-gray: #888888;
   --nt-muted: #666666;
@@ -20,9 +28,23 @@
   --nt-secondary: #f6f5f4;
   --nt-radius: 6px;
 
-  --nt-font-body: "Cairo", "Inter", -apple-system, BlinkMacSystemFont,
-    "Segoe UI", system-ui, sans-serif;
-  --nt-font-display: "Cairo", "Inter", system-ui, sans-serif;
+  --nt-font-body: var(
+    --theme-font-body,
+    var(
+      --theme-body_font,
+      "Cairo",
+      "Inter",
+      -apple-system,
+      BlinkMacSystemFont,
+      "Segoe UI",
+      system-ui,
+      sans-serif
+    )
+  );
+  --nt-font-display: var(
+    --theme-font-heading,
+    var(--theme-heading_font, "Cairo", "Inter", system-ui, sans-serif)
+  );
   --nt-font-mono: "Fragment Mono", "SF Mono", "Fira Code", ui-monospace,
     monospace;
 
@@ -157,9 +179,9 @@
   text-align: center;
 }
 .nt-btn {
-  background: var(--nt-black);
+  background: var(--nt-button);
   color: var(--nt-white);
-  border-color: var(--nt-black);
+  border-color: var(--nt-button);
 }
 .nt-btn:hover {
   background: var(--nt-charcoal);

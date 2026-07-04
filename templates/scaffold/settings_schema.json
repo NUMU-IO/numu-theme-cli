@@ -1,17 +1,21 @@
 [
   {
-    "type": "color",
-    "id": "accent_color",
-    "label": "Accent Color",
-    "default": "#0099ff",
-    "locales": { "ar": { "label": "لون التمييز" } }
+    "type": "header",
+    "content": "Colors",
+    "locales": { "ar": { "content": "الألوان" } }
   },
   {
     "type": "color",
-    "id": "foreground_color",
-    "label": "Text Color",
+    "id": "primary_color",
+    "label": "Primary Color",
     "default": "#000000",
-    "locales": { "ar": { "label": "لون النص" } }
+    "info": "Brand ink — buttons, header, footer and other primary surfaces.",
+    "locales": {
+      "ar": {
+        "label": "اللون الأساسي",
+        "info": "لون العلامة — الأزرار والهيدر والفوتر والأسطح الأساسية."
+      }
+    }
   },
   {
     "type": "color",
@@ -21,15 +25,67 @@
     "locales": { "ar": { "label": "لون الخلفية" } }
   },
   {
-    "type": "select",
-    "id": "font_family",
-    "label": "Font Family",
+    "type": "color",
+    "id": "text_color",
+    "label": "Text Color",
+    "default": "#000000",
+    "locales": { "ar": { "label": "لون النص" } }
+  },
+  {
+    "type": "color",
+    "id": "accent_color",
+    "label": "Accent Color",
+    "default": "#0099ff",
+    "info": "Links, focus rings and hover highlights.",
+    "locales": {
+      "ar": {
+        "label": "لون التمييز",
+        "info": "الروابط وحلقات التركيز وإبرازات التمرير."
+      }
+    }
+  },
+  {
+    "type": "color",
+    "id": "button_color",
+    "label": "Button Color",
+    "default": "#000000",
+    "info": "Primary button background. Defaults to the brand color.",
+    "locales": {
+      "ar": {
+        "label": "لون الأزرار",
+        "info": "خلفية الزر الأساسي. الافتراضي هو لون العلامة."
+      }
+    }
+  },
+  {
+    "type": "header",
+    "content": "Typography",
+    "locales": { "ar": { "content": "الطباعة" } }
+  },
+  {
+    "type": "font",
+    "id": "heading_font",
+    "label": "Heading Font",
     "default": "Cairo",
-    "options": [
-      { "value": "Cairo", "label": "Cairo" },
-      { "value": "Inter", "label": "Inter" },
-      { "value": "Tajawal", "label": "Tajawal" }
-    ],
-    "locales": { "ar": { "label": "الخط" } }
+    "info": "Used for display headings and titles.",
+    "locales": {
+      "ar": {
+        "label": "خط العناوين",
+        "info": "يُستخدم للعناوين الرئيسية والفرعية."
+      }
+    }
+  },
+  {
+    "type": "font",
+    "id": "body_font",
+    "label": "Body Font",
+    "default": "Cairo",
+    "info": "Used for body copy and UI text.",
+    "locales": {
+      "ar": {
+        "label": "خط النص",
+        "info": "يُستخدم لنص المحتوى وواجهة المستخدم."
+      }
+    }
   }
 ]

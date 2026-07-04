@@ -121,16 +121,37 @@ function selectSections(
   return resolveSections(builtin).filter((s) => isKnown(s.instance.type));
 }
 
+/** Build a font-family stack from a merchant-picked family name, keeping the
+ *  theme's Arabic-first fallbacks so glyph coverage never regresses. */
+function fontStack(family: string): string {
+  return `"${family}", "Cairo", "Inter", system-ui, sans-serif`;
+}
+
+// Map the merchant's global theme settings (color scheme + typography) onto
+// the canonical `--theme-*` CSS custom properties `styles.css` consumes — the
+// same role-token names the SDK writes from `global_settings`
+// (colors → --theme-color-<role>, fonts → --theme-font-<role>). Applying them
+// inline on the theme root emits the vars in BOTH the server (`createApp`) and
+// client trees, so they are identical by construction — no hydration drift or
+// unstyled flash. (The SDK's mount effect ALSO applies these on the container
+// and injects web-font <link>s for known font tokens.) styles.css reads each
+// token with this theme's static value as a fallback, e.g.
+//   --nt-fg: var(--theme-color-text, #000000);
+// so changing a color or font in the customizer re-paints every rule that uses
+// the theme's --nt-* tokens.
 function styleVars(global: Record<string, any>): React.CSSProperties {
   const vars: Record<string, string> = {};
-  if (global.accent_color) vars["--nt-accent"] = global.accent_color;
-  if (global.foreground_color) vars["--nt-fg"] = global.foreground_color;
-  if (global.background_color) vars["--nt-bg"] = global.background_color;
-  if (global.font_family) {
-    const stack = `"${global.font_family}", "Inter", system-ui, sans-serif`;
-    vars["--nt-font-body"] = stack;
-    vars["--nt-font-display"] = stack;
-  }
+  // Color scheme → semantic role tokens.
+  if (global.primary_color) vars["--theme-color-primary"] = global.primary_color;
+  if (global.background_color)
+    vars["--theme-color-background"] = global.background_color;
+  if (global.text_color) vars["--theme-color-text"] = global.text_color;
+  if (global.accent_color) vars["--theme-color-accent"] = global.accent_color;
+  if (global.button_color) vars["--theme-color-button"] = global.button_color;
+  // Typography → font-family stacks.
+  if (global.heading_font)
+    vars["--theme-font-heading"] = fontStack(global.heading_font);
+  if (global.body_font) vars["--theme-font-body"] = fontStack(global.body_font);
   return vars as React.CSSProperties;
 }
 
