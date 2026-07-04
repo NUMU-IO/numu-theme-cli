@@ -1,6 +1,6 @@
 import * as fs from "fs";
 import * as path from "path";
-import * as semver from "semver";
+import { validateManifest } from "@numueg/theme-sdk/validation";
 
 interface ValidationResult {
   valid: boolean;
@@ -27,15 +27,8 @@ export function validateTheme(themeDir: string): ValidationResult {
     return { valid: false, errors, warnings };
   }
 
-  // Rule 2: Required fields
-  for (const field of ["name", "version", "author"]) {
-    if (!themeJson[field]) errors.push(`theme.json missing required field: ${field}`);
-  }
-
-  // Rule 3: Valid semver
-  if (themeJson.version && !semver.valid(themeJson.version)) {
-    errors.push(`theme.json version "${themeJson.version}" is not valid semver`);
-  }
+  // (Rules 2/3/9/10 — the theme.json manifest contract — are delegated to the
+  // SDK validator near the end of this function; see the note there.)
 
   // Rule 4: settings_schema.json exists
   const settingsPath = path.join(themeDir, "settings_schema.json");
@@ -116,69 +109,23 @@ export function validateTheme(themeDir: string): ValidationResult {
     }
   }
 
-  // Rule 9: presets in theme.json
-  if (!themeJson.presets || Object.keys(themeJson.presets).length === 0) {
-    warnings.push("theme.json has no presets — merchants will start with an empty page");
-  }
-
-  // Rule 10: preset → section-type coverage + required-template coverage.
-  //
-  // Mirrors the platform gate (@numueg/theme-sdk validateManifest + the
-  // backend theme-contract check): every section type a preset references must
-  // ship a schema (else the storefront drops it at render), and the canonical
-  // page templates should have presets (else the storefront falls back to a
-  // built-in — a warning, not an error).
-  const REQUIRED_TEMPLATES = [
-    "home",
-    "product",
-    "collection",
-    "cart",
-    "page",
-    "search",
-    "404",
-  ];
-  if (themeJson.presets && typeof themeJson.presets === "object") {
-    const referenced = new Set<string>();
-    for (const bucket of [
-      themeJson.presets.templates,
-      themeJson.presets.section_groups,
-    ]) {
-      if (!bucket || typeof bucket !== "object") continue;
-      for (const entry of Object.values(bucket as Record<string, any>)) {
-        const sections = (entry as any)?.sections;
-        const instances = Array.isArray(sections)
-          ? sections
-          : sections && typeof sections === "object"
-            ? Object.values(sections)
-            : [];
-        for (const inst of instances as any[]) {
-          if (inst && typeof inst.type === "string") {
-            referenced.add(inst.type.toLowerCase());
-          }
-        }
-      }
-    }
-    for (const type of referenced) {
-      if (!schemaNames.has(type)) {
-        errors.push(
-          `theme.json preset references section type "${type}" but there is no ` +
-            `schemas/sections/${type}.json — the storefront drops unknown sections at render.`,
-        );
-      }
-    }
-    const templates =
-      themeJson.presets.templates &&
-      typeof themeJson.presets.templates === "object"
-        ? themeJson.presets.templates
-        : {};
-    for (const tpl of REQUIRED_TEMPLATES) {
-      if (!(tpl in templates)) {
-        warnings.push(
-          `theme.json has no preset for the "${tpl}" template — the storefront ` +
-            "will use its built-in fallback.",
-        );
-      }
-    }
+  // Rules 2/3/9/10 — manifest contract — delegated to the SDK's single source
+  // of truth (`@numueg/theme-sdk/validation`). This covers: required fields
+  // (`id`, `name`, `version`, `author`), lowercase `id` format, strict semver,
+  // the empty-presets warning, preset→section-type coverage, and required-
+  // template coverage. Passing `sectionTypes` (the shipped schema basenames)
+  // lets the SDK flag presets that reference a section with no schema — the
+  // same error the storefront would hit at render. Keeping this here (instead
+  // of re-deriving the rules) is what guarantees `check` and `build` agree.
+  const manifestResult = validateManifest(themeJson, {
+    sectionTypes: schemaNames,
+  });
+  for (const issue of manifestResult.issues) {
+    const message = issue.path
+      ? `${issue.message} (${issue.path})`
+      : issue.message;
+    if (issue.level === "error") errors.push(message);
+    else warnings.push(message);
   }
 
   return { valid: errors.length === 0, errors, warnings };

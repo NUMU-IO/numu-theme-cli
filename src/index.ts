@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { Command } from "commander";
 import { initCommand } from "./commands/init";
 import { devCommand } from "./commands/dev";
@@ -17,12 +19,31 @@ import { pullCommand } from "./commands/pull";
 import { deleteCommand } from "./commands/delete";
 import { migrateCommand } from "./commands/migrate";
 
+/**
+ * CLI version — read from package.json at runtime rather than hardcoded, so
+ * `numu-theme --version` can never drift from the published version (it was
+ * pinned at "0.1.0" while the package shipped 0.6.0). `__dirname` is the
+ * `dist/` folder at runtime (tsup emits CJS); package.json sits one level up
+ * both in the repo and in the installed package. Falls back to "0.0.0" if it
+ * can't be read (should never happen in a real install).
+ */
+function readVersion(): string {
+  try {
+    const pkg = JSON.parse(
+      readFileSync(join(__dirname, "..", "package.json"), "utf-8"),
+    );
+    return typeof pkg.version === "string" ? pkg.version : "0.0.0";
+  } catch {
+    return "0.0.0";
+  }
+}
+
 const program = new Command();
 
 program
   .name("numu-theme")
   .description("CLI for developing, validating, building, and publishing NUMU themes")
-  .version("0.1.0");
+  .version(readVersion());
 
 program.addCommand(initCommand);
 program.addCommand(devCommand);

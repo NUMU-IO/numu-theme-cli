@@ -29,9 +29,43 @@ export interface NuMuConfig {
   store_id?: string;
 }
 
+/** Prod NUMU API root. The client appends nothing extra — callers hit
+ *  `${api_url}/<resource>` — so the `/api/v1` suffix belongs here. */
+const DEFAULT_API_URL = "https://numueg.app/api/v1";
+
+/**
+ * Warn (to stderr) when the resolved API host isn't a NUMU host. The bearer
+ * token in `~/.numurc` is attached to authenticated commands, so a stray
+ * `api_url` (a leftover `api.numu.io` from an old config, or a typo) would
+ * ship that credential to a third party. localhost/loopback is allowed for
+ * running against a local backend. stderr keeps it out of any command's
+ * machine-readable stdout.
+ */
+function warnIfUntrustedHost(apiUrl: string): void {
+  let host: string;
+  try {
+    host = new URL(apiUrl).hostname;
+  } catch {
+    return; // Malformed URL — the failing request will surface it on use.
+  }
+  const trusted =
+    host === "numueg.app" ||
+    host.endsWith(".numueg.app") ||
+    host === "localhost" ||
+    host === "127.0.0.1" ||
+    host === "::1";
+  if (!trusted) {
+    process.stderr.write(
+      `[numu-theme] Warning: API host "${host}" is not a *.numueg.app host — ` +
+        `your ~/.numurc token will be sent to it. Set api_url to ` +
+        `${DEFAULT_API_URL} (or re-run \`numu-theme login\`) if that's unexpected.\n`,
+    );
+  }
+}
+
 export function loadConfig(): NuMuConfig {
   const config: NuMuConfig = {
-    api_url: process.env.NUMU_API_URL || "https://api.numu.io/api/v1",
+    api_url: process.env.NUMU_API_URL || DEFAULT_API_URL,
   };
 
   if (fs.existsSync(rcFile())) {
@@ -47,6 +81,8 @@ export function loadConfig(): NuMuConfig {
 
   if (process.env.NUMU_TOKEN) config.token = process.env.NUMU_TOKEN;
   if (process.env.NUMU_STORE_ID) config.store_id = process.env.NUMU_STORE_ID;
+
+  warnIfUntrustedHost(config.api_url);
 
   return config;
 }
