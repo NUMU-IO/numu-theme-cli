@@ -54,8 +54,21 @@ function detectAuthor(): string {
 export const initCommand = new Command("init")
   .description("Scaffold a new NUMU theme project")
   .argument("<name>", "Theme name")
-  .option("--template <template>", "Starter template", "basic")
-  .action(async (name: string, _options: { template: string }) => {
+  .option(
+    "--template <template>",
+    'Starter template (only "basic" exists; see `add-section --from-library` for the section catalog)',
+    "basic",
+  )
+  .action(async (name: string, options: { template: string }) => {
+    // This option used to be accepted and silently ignored — any value
+    // "worked". One starter exists; refuse the rest instead of pretending.
+    if (options.template !== "basic") {
+      console.error(
+        `Unknown template "${options.template}" — only "basic" exists. ` +
+          `Browse ready-made sections with: numu-theme add-section --from-library`,
+      );
+      process.exit(1);
+    }
     const dir = path.resolve(process.cwd(), name);
     if (fs.existsSync(dir)) {
       console.error(`Directory "${name}" already exists`);

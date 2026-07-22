@@ -10,6 +10,7 @@
  */
 
 import type { LintContext, LintIssue, LintRule } from "../runner";
+import { blankComments } from "../strip-comments";
 
 const rule: LintRule = {
   id: "img-missing-alt",
@@ -17,7 +18,10 @@ const rule: LintRule = {
   check(ctx: LintContext): LintIssue[] {
     const issues: LintIssue[] = [];
     for (const [file, source] of Object.entries(ctx.sources)) {
-      const lines = source.split("\n");
+      // A comment that merely MENTIONS `<img>` ("Undefined → the <img>
+      // renders exactly as before") is not a missing-alt violation. Blank
+      // comments first; positions are preserved so line numbers stay true.
+      const lines = blankComments(source).split("\n");
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
         // Match opening <img ...> tags. JSX puts `alt={...}` /
