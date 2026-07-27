@@ -73,6 +73,7 @@ export async function runAllRules(
     () => import("./rules/contrast-hint"),
     () => import("./rules/touch-target"),
     () => import("./rules/no-kit-image-transform"),
+    () => import("./rules/navigability"),
   ];
 
   const issues: LintIssue[] = [];

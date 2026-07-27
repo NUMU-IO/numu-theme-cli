@@ -54,8 +54,21 @@ function detectAuthor(): string {
 export const initCommand = new Command("init")
   .description("Scaffold a new NUMU theme project")
   .argument("<name>", "Theme name")
-  .option("--template <template>", "Starter template", "basic")
-  .action(async (name: string, _options: { template: string }) => {
+  .option(
+    "--template <template>",
+    'Starter template (only "basic" exists; see `add-section --from-library` for the section catalog)',
+    "basic",
+  )
+  .action(async (name: string, options: { template: string }) => {
+    // This option used to be accepted and silently ignored — any value
+    // "worked". One starter exists; refuse the rest instead of pretending.
+    if (options.template !== "basic") {
+      console.error(
+        `Unknown template "${options.template}" — only "basic" exists. ` +
+          `Browse ready-made sections with: numu-theme add-section --from-library`,
+      );
+      process.exit(1);
+    }
     const dir = path.resolve(process.cwd(), name);
     if (fs.existsSync(dir)) {
       console.error(`Directory "${name}" already exists`);
@@ -92,15 +105,23 @@ export const initCommand = new Command("init")
           // → the platform's hardcoded fallback renders.
           error_template: "templates/error.html",
           loading_template: "templates/loading.html",
+          // Chrome bracketing is NOT cosmetic: the `navigability` lint rule
+          // (and the backend's theme_contract.validate_navigability_source,
+          // run on marketplace submit) both hard-fail a theme that ships no
+          // header/footer section. A scaffold that can't pass its own linter
+          // is a theme born broken — so the starter ships real chrome,
+          // header first and footer last, on every preset template.
           presets: {
             templates: {
               home: {
                 name: "Home",
                 sections: [
+                  { type: "header", settings: {} },
                   {
                     type: "hero",
                     settings: { headline: "Welcome to our store" },
                   },
+                  { type: "footer", settings: {} },
                 ],
               },
             },
@@ -244,6 +265,174 @@ export default function Hero({ settings }: SectionProps) {
       ),
     );
 
+    // ── Storefront chrome ────────────────────────────────────────────────
+    // Required, not decorative. `numu-theme lint` fails the `navigability`
+    // rule with an ERROR when a theme declares no header/footer section, and
+    // the marketplace build re-checks the same thing server-side
+    // (NUMU-api src/core/theme_contract.py validate_navigability_source).
+    // Without these two sections a scaffolded theme cannot pass its own lint
+    // and cannot be submitted — and shoppers get the host's generic
+    // ByotChromeFallback strip instead of the theme's own navigation.
+    fs.writeFileSync(
+      path.join(dir, "src/sections/Header.tsx"),
+      `import type { SectionProps } from "@numueg/theme-sdk";
+import { useNavigation, useShop } from "@numueg/theme-sdk";
+
+/**
+ * Theme chrome — header. Rendered first on every preset template.
+ * Keep the schema's "tag": "header" in sync with this component; the
+ * customizer's section-group handling and the host's chrome detection
+ * both key off that tag.
+ *
+ * Links come from the merchant's own \`main-menu\` (hub → Navigation),
+ * so the theme never hardcodes a nav. Empty menu → just the store link.
+ */
+export default function Header({ settings }: SectionProps) {
+  const shop = useShop();
+  const menu = useNavigation((settings.menu_handle as string) || "main-menu");
+  return (
+    <header className="w-full border-b border-gray-200 bg-white">
+      <nav
+        aria-label="Primary"
+        className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4"
+      >
+        <a href="/" className="text-lg font-bold tracking-tight">
+          {(settings.brand_name as string) || shop?.name || ""}
+        </a>
+        <ul className="flex items-center gap-4 text-sm">
+          {menu.items.map((item) => (
+            <li key={item.id}>
+              <a
+                href={item.url || "/"}
+                className="inline-flex min-h-[44px] items-center px-2"
+              >
+                {item.title}
+              </a>
+            </li>
+          ))}
+          <li>
+            <a
+              href="/cart"
+              className="inline-flex min-h-[44px] items-center px-2 font-medium"
+            >
+              {(settings.cart_label as string) || "Cart"}
+            </a>
+          </li>
+        </ul>
+      </nav>
+    </header>
+  );
+}
+`,
+    );
+
+    fs.writeFileSync(
+      path.join(dir, "src/sections/Footer.tsx"),
+      `import type { SectionProps } from "@numueg/theme-sdk";
+import { useNavigation } from "@numueg/theme-sdk";
+
+/**
+ * Theme chrome — footer. Rendered last on every preset template.
+ * Keep the schema's "tag": "footer" in sync with this component.
+ */
+export default function Footer({ settings }: SectionProps) {
+  const menu = useNavigation((settings.menu_handle as string) || "footer");
+  return (
+    <footer className="w-full border-t border-gray-200 bg-white">
+      <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-8 text-sm">
+        <ul className="flex flex-wrap items-center gap-4">
+          {menu.items.map((item) => (
+            <li key={item.id}>
+              <a
+                href={item.url || "/"}
+                className="inline-flex min-h-[44px] items-center px-2"
+              >
+                {item.title}
+              </a>
+            </li>
+          ))}
+        </ul>
+        {settings.copyright ? (
+          <p className="text-gray-500">{settings.copyright as string}</p>
+        ) : null}
+      </div>
+    </footer>
+  );
+}
+`,
+    );
+
+    // Chrome schemas. "tag" is what the linter, the customizer's
+    // header/footer group handling and the host's chrome detection read;
+    // "limit": 1 stops a merchant stacking two headers.
+    fs.writeFileSync(
+      path.join(dir, "schemas/sections/header.json"),
+      JSON.stringify(
+        {
+          type: "header",
+          name: "Header",
+          tag: "header",
+          limit: 1,
+          locales: { ar: { name: "الهيدر" } },
+          settings: [
+            {
+              type: "text",
+              id: "brand_name",
+              label: "Brand name",
+              locales: { ar: { label: "اسم المتجر" } },
+              info: "Leave empty to use the store name.",
+            },
+            {
+              type: "text",
+              id: "cart_label",
+              label: "Cart link label",
+              locales: { ar: { label: "نص رابط السلة" } },
+              default: "Cart",
+            },
+            {
+              type: "link_list_picker",
+              id: "menu_handle",
+              label: "Navigation menu",
+              locales: { ar: { label: "قائمة التنقل" } },
+              default: "main-menu",
+            },
+          ],
+        },
+        null,
+        2,
+      ),
+    );
+
+    fs.writeFileSync(
+      path.join(dir, "schemas/sections/footer.json"),
+      JSON.stringify(
+        {
+          type: "footer",
+          name: "Footer",
+          tag: "footer",
+          limit: 1,
+          locales: { ar: { name: "الفوتر" } },
+          settings: [
+            {
+              type: "link_list_picker",
+              id: "menu_handle",
+              label: "Footer menu",
+              locales: { ar: { label: "قائمة الفوتر" } },
+              default: "footer",
+            },
+            {
+              type: "text",
+              id: "copyright",
+              label: "Copyright line",
+              locales: { ar: { label: "سطر حقوق النشر" } },
+            },
+          ],
+        },
+        null,
+        2,
+      ),
+    );
+
     // Theme entry point — exports both:
     //
     //   1. default Theme component (used by built-in storefronts that share
@@ -264,6 +453,7 @@ export default function Hero({ settings }: SectionProps) {
       `import { createRoot, type Root } from "react-dom/client";
 import type {
   ThemeSettingsV3,
+  SectionInstance,
   Page,
   Product,
   Collection,
@@ -276,15 +466,47 @@ import {
   CollectionProvider,
   NuMuProvider,
 } from "@numueg/theme-sdk";
+import Header from "./sections/Header";
 import Hero from "./sections/Hero";
+import Footer from "./sections/Footer";
 
 interface ThemeProps {
   themeSettings: ThemeSettingsV3;
 }
 
+// Every type referenced by a preset template MUST appear here — a schema
+// without a registered component is a hard \`numu-theme lint\` error
+// (schema-registry-sync), and an unregistered type silently renders nothing.
 const SECTION_REGISTRY: Record<string, React.ComponentType<any>> = {
+  header: Header,
   hero: Hero,
+  footer: Footer,
 };
+
+const CHROME_TYPES = { header: "header", footer: "footer" } as const;
+
+/** Render an ordered section container (page template or section group). */
+function renderSections(
+  container: { sections: Record<string, SectionInstance>; order: string[] } | undefined,
+  filter?: (section: SectionInstance) => boolean,
+) {
+  if (!container) return null;
+  return container.order.map((sectionId) => {
+    const section = container.sections[sectionId];
+    if (!section || section.disabled) return null;
+    if (filter && !filter(section)) return null;
+    const Component = SECTION_REGISTRY[section.type];
+    if (!Component) return null;
+    return (
+      <Component
+        key={sectionId}
+        settings={section.settings}
+        blocks={section.blocks}
+        blockOrder={section.block_order}
+      />
+    );
+  });
+}
 
 export default function Theme({ themeSettings }: ThemeProps) {
   const page = usePage();
@@ -292,23 +514,33 @@ export default function Theme({ themeSettings }: ThemeProps) {
   const template =
     themeSettings.templates?.[pageType] || themeSettings.templates?.home;
 
+  // Chrome reaches a theme from TWO places: inline in the template (what
+  // theme.json's preset ships) or in \`section_groups.header/.footer\` (where
+  // the V3 customizer moves it once a merchant edits chrome). Reading only
+  // one means the header/footer silently vanish for half the stores. Prefer
+  // the group, fall back to the inline sections, and keep chrome OUTSIDE
+  // <main> so the page has a single main landmark.
+  const groups = themeSettings.section_groups || {};
+  const isChrome = (s: SectionInstance) =>
+    s.type === CHROME_TYPES.header || s.type === CHROME_TYPES.footer;
+
+  const groupHeader = renderSections(groups.header);
+  const groupFooter = renderSections(groups.footer);
+  const header =
+    groupHeader && groupHeader.some(Boolean)
+      ? groupHeader
+      : renderSections(template, (s) => s.type === CHROME_TYPES.header);
+  const footer =
+    groupFooter && groupFooter.some(Boolean)
+      ? groupFooter
+      : renderSections(template, (s) => s.type === CHROME_TYPES.footer);
+
   return (
-    <main>
-      {template?.order.map((sectionId) => {
-        const section = template.sections[sectionId];
-        if (!section || section.disabled) return null;
-        const Component = SECTION_REGISTRY[section.type];
-        if (!Component) return null;
-        return (
-          <Component
-            key={sectionId}
-            settings={section.settings}
-            blocks={section.blocks}
-            blockOrder={section.block_order}
-          />
-        );
-      })}
-    </main>
+    <>
+      {header}
+      <main>{renderSections(template, (s) => !isChrome(s))}</main>
+      {footer}
+    </>
   );
 }
 
