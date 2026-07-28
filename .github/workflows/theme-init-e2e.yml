@@ -183,18 +183,33 @@ jobs:
         shell: bash
         run: |
           # /theme.json — the manifest the host reads to render the
+          # Each endpoint is downloaded to a FILE first, then asserted on.
+          #
+          # `curl … | grep -q` looks tidier but is a race: grep -q exits the
+          # instant it matches, curl then writes into a closed pipe, takes
+          # SIGPIPE and exits 23 — and `set -o pipefail` turns that into a
+          # failed step. Whether it happens depends on where the match sits
+          # relative to curl's write buffering, so it fired on macOS and
+          # ubuntu/Node 22 while ubuntu/Node 20 and both Windows legs passed:
+          # a red build with nothing actually wrong. Downloading first removes
+          # the pipe, so the assertions test the response and nothing else.
+
+          # /theme.json — the manifest the host reads to render the
           # customizer. Must include id, name, version.
-          curl -fsS http://localhost:5173/theme.json | grep -q '"id"'
+          curl -fsS http://localhost:5173/theme.json -o theme.json.out
+          grep -q '"id"' theme.json.out
 
           # /theme.js — the bundled entry the host loads via the
           # federation import map. Must export `mount`.
-          curl -fsS http://localhost:5173/theme.js | grep -q "mount"
+          curl -fsS http://localhost:5173/theme.js -o theme.js.out
+          grep -q "mount" theme.js.out
 
           # /sections.json — synthesized from schemas/sections/*.json
           # by the plugin's middleware. Must be valid JSON. Validate with
           # node (always present) rather than python (not guaranteed on
           # every runner / OS in the matrix).
-          curl -fsS http://localhost:5173/sections.json | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{JSON.parse(d);console.log('sections.json is valid JSON')})"
+          curl -fsS http://localhost:5173/sections.json -o sections.json.out
+          node -e "JSON.parse(require('fs').readFileSync('sections.json.out','utf8')); console.log('sections.json is valid JSON')"
 
       - name: Stop dev server
         if: always()
