@@ -753,10 +753,19 @@ export default defineConfig({
             build: "numu-theme build",
             check: "numu-theme check",
           },
-          dependencies: { "@numueg/theme-sdk": "^0.2.0" },
+          // Pin the CURRENT published toolchain. These sat at ^0.2.0 while
+          // npm had moved to sdk 0.12 / plugin 0.6 / cli 0.7, so every
+          // scaffolded theme was born ten minors behind: it installed sdk
+          // 0.2.3, missing every hook added since (useMetafield, useBlogs,
+          // useListingHeading, selectChromeSections, defineThemeEntry) and
+          // built a bundle declaring sdk_compat_minor 2. Keep these moving
+          // with each toolchain release — a stale scaffold is invisible
+          // until a developer wonders why the docs describe APIs they do
+          // not have.
+          dependencies: { "@numueg/theme-sdk": "^0.12.0" },
           devDependencies: {
-            "@numueg/theme-cli": "^0.2.0",
-            "@numueg/theme-plugin": "^0.2.0",
+            "@numueg/theme-cli": "^0.7.0",
+            "@numueg/theme-plugin": "^0.6.0",
             "@vitejs/plugin-react": "^4.3.0",
             vite: "^6.0.0",
             typescript: "^5.8.0",
