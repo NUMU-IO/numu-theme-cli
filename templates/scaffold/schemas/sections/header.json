@@ -1,5 +1,7 @@
 {
   "type": "header",
+  "tag": "header",
+  "limit": 1,
   "name": "Header",
   "locales": { "ar": { "name": "الترويسة" } },
   "settings": [
