@@ -74,6 +74,8 @@ export async function runAllRules(
     () => import("./rules/touch-target"),
     () => import("./rules/ssr-unsafe-globals"),
     () => import("./rules/ssr-nondeterministic-render"),
+    () => import("./rules/no-kit-image-transform"),
+    () => import("./rules/navigability"),
   ];
 
   const issues: LintIssue[] = [];

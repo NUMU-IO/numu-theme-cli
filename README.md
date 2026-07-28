@@ -21,7 +21,7 @@ numu-theme init my-fashion-theme
 cd my-fashion-theme
 npm install
 numu-theme dev
-# → http://localhost:3001/__numu/preview
+# → http://localhost:5173  (override with --port; --store <id> wires a store's dev mode)
 ```
 
 Iterate, then:
@@ -39,21 +39,25 @@ After admin approval, merchants can install your theme from the NUMU marketplace
 
 ```
 numu-theme init <name>             Scaffold a fresh theme
-numu-theme dev [--watch]           Local dev server with HMR
+numu-theme dev [--watch] [--store <id>] [--port <p>] [--expose]
+                                   Local dev server with HMR (Vite, :5173)
 numu-theme check                   Validate theme.json + schemas + locales
-numu-theme lint [--strict]         Static analysis (10 rules)
-numu-theme build                   Production build → dist/
+numu-theme lint [--strict]         Static analysis (12 rules)
+numu-theme build                   Validate + production build → dist/ (warns > 5 MB)
 numu-theme push                    Upload dist/ to developer sandbox
-numu-theme submit                  Submit dist/ for marketplace review
+numu-theme submit --theme-id <id>  Submit dist/ for marketplace review
 numu-theme install <theme-id>      Install a theme into a test store
-numu-theme login                   Marketplace auth
+numu-theme login                   Marketplace auth (~/.numurc)
 numu-theme status                  Login + active theme + build status
 numu-theme doctor                  Diagnose common setup issues
-numu-theme add-section <name>      Scaffold a section (--from-library <slug>)
+numu-theme add-section <name>      Scaffold a section (--from-library <slug>, --list)
 numu-theme add-block <section> <name>
 numu-theme pull <theme-id>         Download published theme source
 numu-theme delete <theme-id>       Soft-delete a draft / unpublish
+numu-theme migrate                 Migrate a V2 in-tree theme toward V3
 ```
+
+> Version source of truth: `submit` reads the version from `theme.json`, **not** `package.json`.
 
 ## Bundled section library (15 entries)
 
@@ -70,9 +74,9 @@ faq-accordion              rich-text
 logo-cloud
 ```
 
-## Lint rules (10)
+## Lint rules (12)
 
-`manifest-required-fields`, `schema-registry-sync`, `locale-parity`, `preset-schema-conformance`, `unused-settings`, `img-missing-alt`, `hardcoded-text`, `inline-color-literal`, `forbidden-script-tag`, `use-app-no-availability-check`.
+`manifest-required-fields`, `schema-registry-sync`, `locale-parity`, `preset-schema-conformance`, `unused-settings`, `img-missing-alt`, `hardcoded-text`, `inline-color-literal`, `forbidden-script-tag`, `use-app-no-availability-check`, plus a11y rules `contrast-hint` and `touch-target`.
 
 ## Docs
 

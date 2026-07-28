@@ -61,8 +61,12 @@ jobs:
           npm ci
           npm run build
 
-      # Link the CLI globally so `numu-theme` resolves on PATH for
-      # the scaffolded theme's package.json scripts.
+      # Link the CLI globally so a bare `numu-theme …` resolves on PATH.
+      # NOTE: this does NOT reach the scaffolded theme's npm scripts — npm
+      # puts the project's own node_modules/.bin FIRST, so `npm run build`
+      # inside the theme runs the PUBLISHED @numueg/theme-cli pinned in the
+      # scaffold's devDependencies, not this branch. Only the bare
+      # `numu-theme …` invocations below exercise the code under review.
       - name: Link CLI globally
         run: npm link
 
@@ -82,6 +86,10 @@ jobs:
         run: |
           cd "$RUNNER_TEMP/demo-theme"
           npm install
+          # This runs the theme's OWN pinned @numueg/theme-cli, because npm
+          # puts node_modules/.bin ahead of the global link inside scripts.
+          # Keep it — it's the dev-realistic path — but note it does NOT
+          # exercise this branch. The step below does.
           npm run build
           # Plugin's contract validator must have produced these:
           test -f dist/theme.js
@@ -101,6 +109,29 @@ jobs:
         run: |
           cd "$RUNNER_TEMP/demo-theme"
           numu-theme verify --no-build
+
+      # ── Branch CLI gate ────────────────────────────────────────────
+      # The step above proves the scaffold builds with the RELEASED CLI.
+      # This one proves it builds and lints clean with the CLI from this
+      # branch — a bare `numu-theme` resolves the global link, since
+      # node_modules/.bin is only on PATH inside npm scripts.
+      #
+      # Without this the e2e validates a release instead of the change
+      # under review, which is how a scaffold that fails its own lint
+      # gate (navigability: no header/footer section) shipped green.
+      # `numu-theme lint` exits non-zero on any ERROR-tier rule.
+      - name: Build + lint with the CLI from THIS branch
+        shell: bash
+        run: |
+          cd "$RUNNER_TEMP/demo-theme"
+          echo "CLI under test: $(command -v numu-theme)"
+          rm -rf dist
+          numu-theme build
+          numu-theme lint
+          test -f dist/theme.js
+          test -f dist/theme.css
+          test -f dist/manifest.json
+          test -f dist/import-map.json
 
       # ── Doctor (Phase 2.6 contract checks) ─────────────────────────
       - name: Run doctor (no backend; warnings allowed, no errors)

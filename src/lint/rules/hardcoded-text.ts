@@ -11,6 +11,7 @@
  */
 
 import type { LintContext, LintIssue, LintRule } from "../runner";
+import { blankComments } from "../strip-comments";
 
 const rule: LintRule = {
   id: "hardcoded-text",
@@ -21,7 +22,11 @@ const rule: LintRule = {
     for (const [file, source] of Object.entries(ctx.sources)) {
       // Skip files clearly not meant for theme rendering.
       if (file.includes("/dev-entry") || file.endsWith(".test.tsx")) continue;
-      const lines = source.split("\n");
+      // Comments routinely contain JSX-shaped prose ("renders outside <main>
+      // … its own <footer>"), which the `>text<` match below reads as real UI
+      // copy. Blank them first — positions are preserved, so reported line
+      // numbers still point at the right place.
+      const lines = blankComments(source).split("\n");
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
         // Match JSX text: > word word word word< pattern.
@@ -55,6 +60,11 @@ function isUiCopy(text: string): boolean {
   // Skip pure URL / class name / variable patterns.
   if (/^https?:\/\//.test(text)) return false;
   if (/^[a-z][\w-]*$/.test(text)) return false;
+  // Skip code that merely LOOKS like JSX text to the `>…<` match: an arrow
+  // function supplies the `>` and a comparison supplies the `<`, so
+  // `.filter((p) => p.id === id && p.n < 5)` reads as a sentence. Operators
+  // like these never appear in real shopper-facing copy.
+  if (/(=>|===|!==|&&|\|\||\?\?|\);|\)\)|\.\w+\()/.test(text)) return false;
   return true;
 }
 
