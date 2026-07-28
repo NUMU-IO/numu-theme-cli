@@ -1,5 +1,7 @@
 {
   "type": "footer",
+  "tag": "footer",
+  "limit": 1,
   "name": "Footer",
   "locales": { "ar": { "name": "التذييل" } },
   "settings": [

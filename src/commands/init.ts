@@ -47,6 +47,40 @@ function scaffoldRoot(): string {
   );
 }
 
+/**
+ * Toolchain versions a freshly scaffolded theme pins.
+ *
+ * ⚠️ RELEASE STEP: bump these when the SDK or plugin publishes a new minor.
+ * They live here — one place, next to the code that uses them — rather than
+ * inside `templates/scaffold/package.json`, because that copy silently rotted
+ * to `^0.5.0` while the SDK shipped 0.12.0 and the plugin 0.6.0. A caret on a
+ * 0.x version is locked to its minor (`^0.5.0` → `>=0.5.0 <0.6.0`), so that
+ * pin did not "float forward" — every new theme was born seven minors behind
+ * the host, which is precisely the shape of the SDK-mismatch failure that
+ * blanks a storefront.
+ *
+ * The CLI's own pin is NOT listed: it is derived from this package's version
+ * at scaffold time and cannot drift at all.
+ */
+const SDK_PIN = "^0.12.0";
+const PLUGIN_PIN = "^0.6.0";
+
+/**
+ * This package's version — same trick as `--version` in src/index.ts.
+ * `__dirname` is `dist/` at runtime; package.json sits one level up both in
+ * the repo and in an installed copy.
+ */
+function readOwnVersion(): string {
+  try {
+    const pkg = JSON.parse(
+      fs.readFileSync(path.join(__dirname, "..", "package.json"), "utf-8"),
+    ) as { version?: unknown };
+    return typeof pkg.version === "string" ? pkg.version : "0.0.0";
+  } catch {
+    return "0.0.0";
+  }
+}
+
 /** Files whose contents carry `__TOKEN__` placeholders to substitute. */
 const SUBSTITUTED = new Set([
   "theme.json",
@@ -116,8 +150,24 @@ function copyTree(
 export const initCommand = new Command("init")
   .description("Scaffold a new NUMU theme project from the standard starter")
   .argument("<name>", "Theme name")
-  .option("--template <template>", "Starter template", "basic")
-  .action(async (name: string, _options: { template: string }) => {
+  .option(
+    "--template <template>",
+    'Starter template (only "basic" exists; browse ready-made sections with `add-section --from-library`)',
+    "basic",
+  )
+  .action(async (name: string, options: { template: string }) => {
+    // This option was accepted and then silently ignored, so ANY value
+    // "worked" — `--template minimal` scaffolded the basic starter and said
+    // nothing, leaving the author to discover the mismatch later. One starter
+    // exists; refuse the rest instead of pretending.
+    if (options.template !== "basic") {
+      console.error(
+        `Unknown template "${options.template}" — only "basic" exists. ` +
+          `Browse ready-made sections with: numu-theme add-section --from-library`,
+      );
+      process.exit(1);
+    }
+
     const dir = path.resolve(process.cwd(), name);
     if (fs.existsSync(dir)) {
       console.error(`Directory "${name}" already exists`);
@@ -131,6 +181,12 @@ export const initCommand = new Command("init")
       PKG_NAME: themeId,
       AUTHOR: detectAuthor(),
       VERSION: "0.1.0",
+      // The CLI pin derives from THIS package's version, so it can never go
+      // stale: whatever CLI you scaffolded with is the CLI the theme pins.
+      // The hardcoded pin had drifted to ^0.5.0 while 0.7.0 was published.
+      CLI_PIN: `^${readOwnVersion()}`,
+      SDK_PIN: SDK_PIN,
+      PLUGIN_PIN: PLUGIN_PIN,
     };
 
     console.log(`Creating NUMU theme: ${name}...`);
