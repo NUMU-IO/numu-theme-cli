@@ -61,12 +61,12 @@ jobs:
           npm ci
           npm run build
 
-      # Link the CLI globally so a bare `numu-theme …` resolves on PATH.
-      # NOTE: this does NOT reach the scaffolded theme's npm scripts — npm
-      # puts the project's own node_modules/.bin FIRST, so `npm run build`
-      # inside the theme runs the PUBLISHED @numueg/theme-cli pinned in the
-      # scaffold's devDependencies, not this branch. Only the bare
-      # `numu-theme …` invocations below exercise the code under review.
+      # Link the CLI globally so a bare `numu-theme …` resolves on PATH —
+      # that is how `init` runs, before any theme directory exists.
+      # Inside the scaffolded theme, npm puts node_modules/.bin FIRST, so the
+      # theme's own scripts would run whatever CLI its package.json resolves;
+      # the install step below repoints that dependency at this checkout so
+      # both invocation paths exercise the code under review.
       - name: Link CLI globally
         run: npm link
 
@@ -85,11 +85,24 @@ jobs:
         shell: bash
         run: |
           cd "$RUNNER_TEMP/demo-theme"
+          # Point the theme's CLI devDependency at THIS checkout before
+          # installing. Two reasons, both load-bearing:
+          #
+          #  1. The scaffold pins the CLI version being released, and that
+          #     version is not on npm until the release publishes it. Left
+          #     alone, `npm install` fails ETARGET on every pre-release PR —
+          #     CI would depend on publish order, so a release could never be
+          #     verified before it shipped.
+          #  2. npm puts node_modules/.bin ahead of the global link inside npm
+          #     scripts, so `npm run build` would otherwise run the PUBLISHED
+          #     CLI. The e2e is supposed to test the code under review.
+          #
+          # Everything else — the SDK, the plugin — still installs from the
+          # registry exactly as a real theme author would get it.
+          npm pkg set "devDependencies.@numueg/theme-cli=file:$GITHUB_WORKSPACE"
           npm install
-          # This runs the theme's OWN pinned @numueg/theme-cli, because npm
-          # puts node_modules/.bin ahead of the global link inside scripts.
-          # Keep it — it's the dev-realistic path — but note it does NOT
-          # exercise this branch. The step below does.
+          # Now genuinely this branch's CLI, invoked the way a theme author
+          # invokes it (through the theme's own npm script).
           npm run build
           # Plugin's contract validator must have produced these:
           test -f dist/theme.js
