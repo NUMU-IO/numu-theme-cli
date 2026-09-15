@@ -4,6 +4,7 @@ import * as path from "path";
 import { loadConfig } from "../utils/config";
 import { apiRequest } from "../utils/api";
 import { validateTheme } from "../utils/validator";
+import { presetSections } from "../utils/presets";
 
 /**
  * `numu-theme doctor` — single-command diagnostic for the 90% case.
@@ -202,16 +203,15 @@ export const doctorCommand = new Command("doctor")
 
     // ── 3.7 Theme.json preset references (Phase 2.6) ──
     //
-    // Every section type referenced from theme.json's `presets[*].sections`
-    // must exist as a component AND a schema. A typo'd type here means the
-    // customizer's "Add section" dialog shows ghost entries that crash on
-    // selection.
+    // Every section type placed by theme.json's `presets.templates` and
+    // `presets.section_groups` must exist as a component AND a schema. A
+    // typo'd type here means the customizer's "Add section" dialog shows
+    // ghost entries that crash on selection.
     console.log("\nPresets");
     try {
       const themeJson = JSON.parse(
         fs.readFileSync(themeJsonPath, "utf-8"),
-      ) as { presets?: Record<string, unknown> };
-      const presets = themeJson.presets ?? {};
+      ) as Record<string, unknown>;
       const sectionsDir = path.join(themeDir, "src", "sections");
       const schemaDir = path.join(themeDir, "schemas", "sections");
       const componentNames = fs.existsSync(sectionsDir)
@@ -231,34 +231,27 @@ export const doctorCommand = new Command("doctor")
           )
         : new Set<string>();
       let missingRefs = 0;
-      for (const [presetName, presetVal] of Object.entries(presets)) {
-        const sections = (
-          (presetVal as { sections?: Record<string, { type?: string }> })
-            .sections ?? {}
-        );
-        for (const [, sec] of Object.entries(sections)) {
-          const t = (sec?.type || "").toLowerCase();
-          if (!t) continue;
-          if (!componentNames.has(t)) {
-            fail(
-              `Preset "${presetName}" references section type "${t}" but ` +
-                `src/sections/${t}.tsx (or .jsx/.ts) is missing.`,
-            );
-            missingRefs += 1;
-          } else if (!schemaNames.has(t)) {
-            warn(
-              `Preset "${presetName}" references section type "${t}" but ` +
-                `schemas/sections/${t}.json is missing — customizer will warn on selection.`,
-            );
-          }
+      const refs = presetSections(themeJson);
+      for (const { preset: presetName, section: sec } of refs) {
+        const t = (sec.type || "").toLowerCase();
+        if (!t) continue;
+        if (!componentNames.has(t)) {
+          fail(
+            `Preset "${presetName}" references section type "${t}" but ` +
+              `src/sections/${t}.tsx (or .jsx/.ts) is missing.`,
+          );
+          missingRefs += 1;
+        } else if (!schemaNames.has(t)) {
+          warn(
+            `Preset "${presetName}" references section type "${t}" but ` +
+              `schemas/sections/${t}.json is missing — customizer will warn on selection.`,
+          );
         }
       }
-      if (Object.keys(presets).length === 0) {
-        warn("theme.json has no presets — merchants start with an empty page");
+      if (refs.length === 0) {
+        warn("theme.json presets place no sections — merchants start with an empty page");
       } else if (missingRefs === 0) {
-        ok(
-          `${Object.keys(presets).length} preset(s); all section refs resolve`,
-        );
+        ok(`${refs.length} preset section ref(s); all resolve`);
       }
     } catch (err) {
       warn(`Could not parse theme.json presets: ${(err as Error).message}`);

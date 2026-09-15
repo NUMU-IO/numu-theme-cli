@@ -76,6 +76,7 @@ export async function runAllRules(
     () => import("./rules/ssr-nondeterministic-render"),
     () => import("./rules/no-kit-image-transform"),
     () => import("./rules/navigability"),
+    () => import("./rules/no-local-template-helpers"),
   ];
 
   const issues: LintIssue[] = [];

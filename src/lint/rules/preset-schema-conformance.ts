@@ -10,55 +10,47 @@
  */
 
 import type { LintContext, LintIssue, LintRule } from "../runner";
+import { presetSections } from "../../utils/presets";
 
 const rule: LintRule = {
   id: "preset-schema-conformance",
   description: "Preset settings only use schema-declared ids + valid values",
   check(ctx: LintContext): LintIssue[] {
     const issues: LintIssue[] = [];
-    const presets = (ctx.manifest.presets as Record<string, unknown>) || {};
-    const templates =
-      (presets.templates as Record<string, Record<string, unknown>>) || {};
 
-    for (const [templateKey, template] of Object.entries(templates)) {
-      const sections =
-        (template?.sections as Record<
-          string,
-          { type?: string; settings?: Record<string, unknown> }
-        >) || {};
-      for (const [sectionKey, section] of Object.entries(sections)) {
-        if (!section?.type) continue;
-        const schema = ctx.sectionSchemas[section.type];
-        if (!schema) continue; // schema-registry-sync handles this
-        const allowed = collectSettingDefs(
-          (schema.settings as unknown[]) || [],
-        );
-        const setSettings = section.settings || {};
-        for (const [settingId, value] of Object.entries(setSettings)) {
-          const def = allowed.get(settingId);
-          if (!def) {
-            issues.push({
-              rule: rule.id,
-              severity: "error",
-              file: "theme.json",
-              message:
-                `Template '${templateKey}' section '${sectionKey}' sets ` +
-                `'${settingId}' but section schema '${section.type}' doesn't declare it.`,
-              suggestion: `Add the setting to schemas/sections/${section.type}.json or remove it from the preset.`,
-            });
-            continue;
-          }
-          const optionError = validateSettingValue(def, value);
-          if (optionError) {
-            issues.push({
-              rule: rule.id,
-              severity: "error",
-              file: "theme.json",
-              message:
-                `Template '${templateKey}' section '${sectionKey}' setting ` +
-                `'${settingId}': ${optionError}`,
-            });
-          }
+    for (const { bucket, preset, id: sectionKey, section } of presetSections(
+      ctx.manifest,
+    )) {
+      if (!section.type) continue;
+      const schema = ctx.sectionSchemas[section.type];
+      if (!schema) continue; // schema-registry-sync handles this
+      const where = `${bucket === "templates" ? "Template" : "Section group"} '${preset}'`;
+      const allowed = collectSettingDefs((schema.settings as unknown[]) || []);
+      const setSettings = section.settings || {};
+      for (const [settingId, value] of Object.entries(setSettings)) {
+        const def = allowed.get(settingId);
+        if (!def) {
+          issues.push({
+            rule: rule.id,
+            severity: "error",
+            file: "theme.json",
+            message:
+              `${where} section '${sectionKey}' sets ` +
+              `'${settingId}' but section schema '${section.type}' doesn't declare it.`,
+            suggestion: `Add the setting to schemas/sections/${section.type}.json or remove it from the preset.`,
+          });
+          continue;
+        }
+        const optionError = validateSettingValue(def, value);
+        if (optionError) {
+          issues.push({
+            rule: rule.id,
+            severity: "error",
+            file: "theme.json",
+            message:
+              `${where} section '${sectionKey}' setting ` +
+              `'${settingId}': ${optionError}`,
+          });
         }
       }
     }
