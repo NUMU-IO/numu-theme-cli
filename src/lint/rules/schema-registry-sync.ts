@@ -10,6 +10,7 @@
  */
 
 import type { LintContext, LintIssue, LintRule } from "../runner";
+import { presetSections } from "../../utils/presets";
 
 const rule: LintRule = {
   id: "schema-registry-sync",
@@ -17,17 +18,10 @@ const rule: LintRule = {
     "Every section/block referenced in presets has a matching schema file",
   check(ctx: LintContext): LintIssue[] {
     const issues: LintIssue[] = [];
-    const presets = (ctx.manifest.presets as Record<string, unknown>) || {};
-    const templates =
-      (presets.templates as Record<string, Record<string, unknown>>) || {};
 
     const referencedSectionTypes = new Set<string>();
-    for (const template of Object.values(templates)) {
-      const sections =
-        (template?.sections as Record<string, { type?: string }>) || {};
-      for (const section of Object.values(sections)) {
-        if (section?.type) referencedSectionTypes.add(section.type);
-      }
+    for (const { section } of presetSections(ctx.manifest)) {
+      if (section.type) referencedSectionTypes.add(section.type);
     }
 
     for (const type of referencedSectionTypes) {
@@ -48,7 +42,7 @@ const rule: LintRule = {
         // Only warn for sections that *could* have been used in a
         // preset. If the theme is small / new, this is noise — but
         // accumulating orphans is a real code-smell.
-        if (Object.keys(referencedSectionTypes).length === 0) continue;
+        if (referencedSectionTypes.size === 0) continue;
         issues.push({
           rule: rule.id,
           severity: "warning",

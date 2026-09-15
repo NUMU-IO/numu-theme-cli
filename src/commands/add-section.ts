@@ -13,7 +13,7 @@ import { LIBRARY, findEntry } from "../section-library";
  *
  * In either case the command:
  *   1. Writes src/sections/<PascalCase>.tsx
- *   2. Writes schemas/sections/<kebab-case>.json
+ *   2. Writes schemas/sections/<slug>.json
  *   3. Updates src/main.tsx to import + dispatch the section
  *      (best-effort regex insert; falls back to a comment hint
  *      when main.tsx structure is unexpected)
@@ -25,7 +25,7 @@ import { LIBRARY, findEntry } from "../section-library";
 
 export const addSectionCommand = new Command("add-section")
   .description("Scaffold a new section (optionally from the built-in library)")
-  .argument("[name]", "Section slug (kebab-case, e.g. 'hero-banner')")
+  .argument("[name]", "Section slug (e.g. 'hero-banner' or 'hero_banner')")
   .option(
     "--from-library <slug>",
     "Copy from the built-in section library (run with --list to see options)",
@@ -63,7 +63,9 @@ export const addSectionCommand = new Command("add-section")
         process.exit(1);
       }
 
-      const slug = toKebab(name);
+      // Keep a valid section type as typed — snake_case themes (the scaffold,
+      // empire) would otherwise get a different, kebab-cased type.
+      const slug = SECTION_TYPE_RE.test(name) ? name : toKebab(name);
       const pascal = toPascal(name);
 
       let componentSource: string;
@@ -136,6 +138,8 @@ export const addSectionCommand = new Command("add-section")
     },
   );
 
+// Copied from @numueg/theme-sdk's validator (not exported there).
+const SECTION_TYPE_RE = /^[a-z][a-z0-9_-]*$/;
 
 function toKebab(s: string): string {
   return s
@@ -155,7 +159,7 @@ function toPascal(s: string): string {
 
 function humanize(slug: string): string {
   return slug
-    .split("-")
+    .split(/[-_]/)
     .filter(Boolean)
     .map((p) => p[0].toUpperCase() + p.slice(1))
     .join(" ");
@@ -257,21 +261,22 @@ function tryAddToHomePreset(themeDir: string, slug: string): void {
     (presets.templates as Record<string, Record<string, unknown>>) || {};
   const home = templates.home;
   if (!home) return;
-  const sections = (home.sections as Record<string, unknown>) || {};
-  const order = (home.order as string[]) || [];
-  const newKey = `${slug.replace(/-/g, "_")}_1`;
+  const sections = (home.sections ?? []) as
+    | Array<{ type?: string } | null>
+    | Record<string, { type?: string } | null>;
   // Don't duplicate if the slug is already placed somewhere.
-  for (const existing of Object.values(sections)) {
-    if (
-      existing &&
-      typeof existing === "object" &&
-      (existing as Record<string, unknown>).type === slug
-    )
-      return;
+  const existing = Array.isArray(sections) ? sections : Object.values(sections);
+  if (existing.some((s) => s?.type === slug)) return;
+  const instance = { type: slug, settings: {} };
+  if (Array.isArray(sections)) {
+    // Every real theme + the scaffold: array order is render order, no `order` key.
+    sections.push(instance);
+  } else {
+    // Legacy id → instance map: extend `order` only if the preset already has one.
+    const newKey = `${slug.replace(/-/g, "_")}_1`;
+    sections[newKey] = instance;
+    if (Array.isArray(home.order)) home.order.push(newKey);
   }
-  sections[newKey] = { type: slug, settings: {} };
-  order.push(newKey);
   home.sections = sections;
-  home.order = order;
   fs.writeFileSync(themeJsonPath, JSON.stringify(parsed, null, 2));
 }

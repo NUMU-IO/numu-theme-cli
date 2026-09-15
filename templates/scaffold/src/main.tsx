@@ -3,6 +3,8 @@ import {
   defineThemeEntry,
   Section,
   useDirection,
+  selectTemplateSections,
+  type MaybeOrderedTemplate,
   type ThemeSettingsV3,
 } from "@numueg/theme-sdk";
 import manifest from "../theme.json";
@@ -90,35 +92,19 @@ function normaliseInstance(instance: SectionLike): SectionLike {
   return instance;
 }
 
-/** Normalise a template/group (array OR map+order) → ordered instance list. */
-function resolveSections(
-  group: GroupLike | undefined,
-): Array<{ id: string; instance: SectionLike }> {
-  if (!group || !group.sections) return [];
-  if (Array.isArray(group.sections)) {
-    return group.sections.map((instance, idx) => ({
-      id: `${instance.type}-${idx}`,
-      instance: normaliseInstance(instance),
-    }));
-  }
-  const map = group.sections as Record<string, SectionLike>;
-  const order = group.order ?? Object.keys(map);
-  const out: Array<{ id: string; instance: SectionLike }> = [];
-  for (const id of order) {
-    const instance = map[id];
-    if (instance) out.push({ id, instance: normaliseInstance(instance) });
-  }
-  return out;
-}
-
-/** Prefer the host's customisation; fall back to bundled presets (preview). */
+/** Which sections to render: the SDK decides (host customisation, else the
+ *  bundled preset). Don't copy that policy into the theme — `numu-theme lint`
+ *  rejects local `resolveSections` / `selectTemplateSections`. Blocks are
+ *  normalised here for this scaffold's sections. */
 function selectSections(
   host: GroupLike | undefined,
   builtin: GroupLike | undefined,
 ): Array<{ id: string; instance: SectionLike }> {
-  const hostList = resolveSections(host).filter((s) => isKnown(s.instance.type));
-  if (hostList.length > 0) return hostList;
-  return resolveSections(builtin).filter((s) => isKnown(s.instance.type));
+  return selectTemplateSections(
+    host as unknown as MaybeOrderedTemplate | undefined,
+    builtin as unknown as MaybeOrderedTemplate | undefined,
+    isKnown,
+  ).map(({ id, instance }) => ({ id, instance: normaliseInstance(instance as unknown as SectionLike) }));
 }
 
 /** Build a font-family stack from a merchant-picked family name, keeping the

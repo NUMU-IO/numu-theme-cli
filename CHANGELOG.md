@@ -4,6 +4,20 @@ All notable changes to `@numueg/theme-cli` are documented here. The format is ba
 
 ## [Unreleased]
 
+### Added
+
+- **`lint`: `no-local-template-helpers`** (error) flags a local definition of `resolveSections` or `selectTemplateSections`, exported or not. That policy decides which sections render and lives in `@numueg/theme-sdk` since 0.12.0; copies kept being vendored into themes after the hoist. A local wrapper that calls the SDK is allowed.
+
+### Changed
+
+- **Scaffold:** `templates/scaffold/src/main.tsx` no longer defines its own `resolveSections`; `selectSections` now wraps the SDK's `selectTemplateSections` and only normalises blocks. Every `numu-theme init` used to create an unexported fork that an export-only check could not see.
+
+### Fixed
+
+- **`add-section`** appends to array-shaped home presets (every real theme and the scaffold) instead of writing a map key that never serialized plus a stray `home.order`. Valid snake_case types (e.g. `product_details`) are kept as typed instead of being kebab-cased, and their display name splits on `_`.
+- **`doctor`** checks preset section refs in `presets.templates` and `presets.section_groups`; it previously visited 0 sections and still reported success.
+- **`lint`**: `schema-registry-sync` and `preset-schema-conformance` now cover `presets.section_groups` (array or map `sections`), and the orphan-schema warning fires (it was gated on `Object.keys(<Set>)`, always empty).
+
 ## [0.6.0] - 2026-06-26
 
 ### Changed
