@@ -62,7 +62,7 @@ function scaffoldRoot(): string {
  * The CLI's own pin is NOT listed: it is derived from this package's version
  * at scaffold time and cannot drift at all.
  */
-const SDK_PIN = "^0.12.0";
+const SDK_PIN = "^0.16.0";
 const PLUGIN_PIN = "^0.6.0";
 
 /**

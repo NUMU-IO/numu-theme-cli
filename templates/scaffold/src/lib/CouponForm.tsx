@@ -1,45 +1,20 @@
-import { useState } from "react";
-import { useCart } from "@numueg/theme-sdk";
+import { useDiscountCode } from "@numueg/theme-sdk";
 
 /**
- * Coupon / discount-code input wired to the live cart. Applies via the SDK's
- * `applyDiscount` (which re-fetches the cart with the dashboard-computed
- * discount); once a code is on the cart it shows an "applied" chip with a
- * remove action. Shared by the cart drawer and the full cart page.
+ * Coupon / discount-code input wired to the live cart. The apply/remove state
+ * machine is the SDK's `useDiscountCode`, so this file is markup.
+ *
+ * Writing that state by hand is how every existing theme got it wrong: the
+ * SDK's `applyDiscount` REPORTS a rejection (`{ ok: false, message }`) rather
+ * than throwing, so a `try/catch` around it never fires and a wrong code
+ * clears the input while saying nothing at all — which a shopper reads as
+ * "this store's codes don't work". `error` below is the backend's own
+ * reason ("This coupon has expired", "does not apply to this cart").
  */
 export function CouponForm({ compact = false }: { compact?: boolean }) {
-  const { cart, applyDiscount, removeDiscount, loading } = useCart();
-  const [code, setCode] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  const applied = cart?.discount_code;
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    const value = code.trim();
-    if (!value || busy || loading) return;
-    setError(null);
-    setBusy(true);
-    try {
-      await applyDiscount(value);
-      setCode("");
-    } catch {
-      setError("تعذّر تطبيق الكود. تأكد من صحته وحاول مرة أخرى.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function remove() {
-    if (busy || loading) return;
-    setBusy(true);
-    try {
-      await removeDiscount();
-    } finally {
-      setBusy(false);
-    }
-  }
+  const { code, setCode, applied, busy, error, submit, remove } = useDiscountCode(
+    "تعذّر تطبيق الكود. تأكد من صحته وحاول مرة أخرى.",
+  );
 
   if (applied) {
     return (
@@ -50,8 +25,8 @@ export function CouponForm({ compact = false }: { compact?: boolean }) {
         <button
           type="button"
           className="nt-coupon__remove"
-          onClick={remove}
-          disabled={busy || loading}
+          onClick={() => void remove()}
+          disabled={busy}
         >
           إزالة
         </button>
@@ -71,15 +46,12 @@ export function CouponForm({ compact = false }: { compact?: boolean }) {
           value={code}
           placeholder="كود الخصم"
           aria-label="كود الخصم"
-          onChange={(e) => {
-            setCode(e.target.value);
-            if (error) setError(null);
-          }}
+          onChange={(e) => setCode(e.target.value)}
         />
         <button
           className="nt-btn-outline"
           type="submit"
-          disabled={busy || loading || !code.trim()}
+          disabled={busy || !code.trim()}
         >
           {busy ? "..." : "تطبيق"}
         </button>
