@@ -299,7 +299,7 @@ The reviewer runs this list. Run it first.
 3. The Arabic name, tagline, description, captions and settings labels are real Egyptian Arabic and differ from the English.
 4. The settings form looks right in Arabic (RTL) and English in the hub.
 5. After uninstalling, your server makes no calls for that store and has deleted its token.
-6. A webhook with a wrong `X-NUMU-Signature-V1` gets `401`.
+6. A webhook with a wrong `X-NUMU-Signature-V1` gets `401`. Test it with `numu app webhook trigger order.paid --bad-signature --secret <client secret>`: your endpoint must answer `401`.
 7. The privacy policy loads and names the customer data you use.
 8. The listed price is exactly what, and where, the merchant pays.
 9. The app does not pose as a NUMU feature or as a NUMU App.
