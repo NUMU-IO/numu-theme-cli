@@ -18,6 +18,7 @@ import { addBlockCommand } from "./commands/add-block";
 import { pullCommand } from "./commands/pull";
 import { deleteCommand } from "./commands/delete";
 import { migrateCommand } from "./commands/migrate";
+import { createCommand } from "./commands/create";
 
 /**
  * CLI version — read from package.json at runtime rather than hardcoded, so
@@ -52,6 +53,7 @@ program.addCommand(lintCommand);
 program.addCommand(buildCommand);
 program.addCommand(verifyCommand);
 program.addCommand(pushCommand);
+program.addCommand(createCommand);
 program.addCommand(submitCommand);
 program.addCommand(installCommand);
 program.addCommand(loginCommand);

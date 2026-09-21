@@ -28,7 +28,8 @@
   },
   "main": "./dist/index.js",
   "bin": {
-    "numu-theme": "./dist/index.js"
+    "numu-theme": "./dist/index.js",
+    "numu": "./dist/numu.js"
   },
   "files": [
     "dist",

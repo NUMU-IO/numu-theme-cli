@@ -1,0 +1,39 @@
+{
+  "manifest_version": 1,
+  "slug": "__SLUG__",
+  "version": "1.0.0",
+  "type": ["connected"],
+  "name": { "ar": "اسم التطبيق بالعربي", "en": "Your app name" },
+  "tagline": { "ar": "جملة قصيرة بتقول التطبيق بيعمل إيه", "en": "One short line on what the app does" },
+  "description": {
+    "ar": "اكتب هنا بالعامية المصرية التطبيق بيحل مشكلة إيه للتاجر وبيشتغل إزاي.",
+    "en": "Explain which merchant problem the app solves and how it works."
+  },
+  "icon": "https://example.com/icon-512.png",
+  "screenshots": [],
+  "category": "other",
+  "developer": {
+    "support_email": "support@example.com",
+    "support_url": "https://example.com/support",
+    "privacy_policy_url": "https://example.com/privacy"
+  },
+  "app_url": "https://example.com/numu",
+  "oauth": {
+    "redirect_urls": ["https://example.com/numu/callback"],
+    "scopes": ["orders:read"]
+  },
+  "webhooks": [
+    { "event": "order.paid", "url": "https://example.com/numu/webhooks" },
+    { "event": "app.uninstalled", "url": "https://example.com/numu/webhooks" }
+  ],
+  "settings_schema": [
+    {
+      "id": "enabled",
+      "type": "checkbox",
+      "default": true,
+      "locales": { "ar": { "label": "شغّال" }, "en": { "label": "Enabled" } }
+    }
+  ],
+  "pricing": { "model": "free" },
+  "languages": ["ar", "en"]
+}

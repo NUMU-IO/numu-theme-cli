@@ -34,7 +34,7 @@ export const submitCommand = new Command("submit")
   .option("-d, --dir <directory>", "Theme directory", ".")
   .requiredOption(
     "-t, --theme-id <theme_id>",
-    "Marketplace theme listing UUID (create via dashboard first)",
+    "Marketplace theme listing UUID (create one with: numu-theme create)",
   )
   .option("-n, --notes <notes>", "Release notes for this version")
   .action(
