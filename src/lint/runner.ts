@@ -77,6 +77,7 @@ export async function runAllRules(
     () => import("./rules/no-kit-image-transform"),
     () => import("./rules/navigability"),
     () => import("./rules/no-local-template-helpers"),
+    () => import("./rules/physical-css-direction"),
   ];
 
   const issues: LintIssue[] = [];
