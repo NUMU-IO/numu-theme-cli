@@ -349,7 +349,7 @@ Pricing: free | external (billed at https://…, EGP …/month)
   "pricing": { "model": "recurring", "price_cents": 9900, "cycle": "monthly" }
   ```
 
-  `price_cents` is in piasters (EGP 5 to 100,000). NUMU writes the listing label for you ("EGP 99 / month", "99 ج.م في الشهر"). A store whose subscription lapses keeps your app for 3 days; then your token answers `402` and NUMU stops sending that store's webhooks until the merchant pays. The app is never uninstalled.
+  `price_cents` is in piasters (EGP 5 to 100,000). NUMU writes the listing label for you ("EGP 99 / month", "٩٩ ج.م في الشهر"). A store whose subscription lapses keeps your app for 3 days; then your token answers `402` and NUMU stops sending that store's webhooks until the merchant pays. The app is never uninstalled.
 - **Price in EGP.** Merchants are small businesses, and USD pricing is a hard sell.
 - A free tier or trial wins far more installs in this market than a paywall.
 
