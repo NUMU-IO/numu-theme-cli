@@ -335,7 +335,7 @@ Pricing: free | external (billed at https://…, EGP …/month)
 - **Ordering:** the catalog is ordered by relevance and rating. NUMU's own apps get a badge and a filter, not a boost. The fair-play rules are at `developers.numueg.app/partners/fair-play`.
 - **Updates:** every change to the manifest, the listing, scopes or URLs is a new version. Listing-only and no-scope-change versions clear faster.
 - **New scopes:** merchants must re-approve, so keep working with the old scopes until they do. `app.scopes_updated` tells you when.
-- **Leaked client secret:** rotate it in the portal. The old one works for 24 hours.
+- **Leaked client secret:** rotate it in the portal. The old secret stops working immediately, so deploy the new one right away.
 
 ---
 
