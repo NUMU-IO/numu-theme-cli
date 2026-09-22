@@ -4,12 +4,25 @@ All notable changes to `@numueg/theme-cli` are documented here. The format is ba
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-09-22
+
 ### Added
 
+- **`numu app`: build and ship a NUMU Partner App from the terminal** (a new `numu` binary next to `numu-theme`).
+  - `init` scaffolds `numu.app.json` and the `numu-app-developer` Claude skill.
+  - `validate` checks the manifest against the API's own rules; nothing is stored.
+  - `create` registers the app in your partner account and prints the client secret once.
+  - `version` uploads the manifest as a draft.
+  - `submit` sends it for NUMU review; `status` shows versions, review state and NUMU's notes.
+  - `publish` makes the approved version live.
+  - `install` puts the app on one of your development stores.
+  - `webhook trigger <event>` POSTs a correctly signed (`X-NUMU-Signature-V1`) sample delivery to your endpoint; add `--bad-signature` to check that you reject forgeries.
+- **`lint`: `physical-css-direction`** flags `left`/`right`-specific utilities and properties (`ml-`, `pr-`, `left-`, `text-right`, `rounded-l-`, …) so layouts mirror under RTL; use the logical forms (`ms-`, `pe-`, `start-`, `text-start`, `rounded-s-`).
 - **`lint`: `no-local-template-helpers`** (error) flags a local definition of `resolveSections` or `selectTemplateSections`, exported or not. That policy decides which sections render and lives in `@numueg/theme-sdk` since 0.12.0; copies kept being vendored into themes after the hoist. A local wrapper that calls the SDK is allowed.
 
 ### Changed
 
+- **Scaffold:** new themes pin `@numueg/theme-sdk ^0.16.0` and the cart's coupon box uses the SDK's `useDiscountCode()` instead of hand-rolled apply/remove state (which reported rejected codes wrongly).
 - **Scaffold:** `templates/scaffold/src/main.tsx` no longer defines its own `resolveSections`; `selectSections` now wraps the SDK's `selectTemplateSections` and only normalises blocks. Every `numu-theme init` used to create an unexported fork that an export-only check could not see.
 
 ### Fixed
