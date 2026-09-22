@@ -1,4 +1,5 @@
 import { Command } from "commander";
+import * as crypto from "crypto";
 import * as fs from "fs";
 import * as path from "path";
 import { loadConfig } from "../utils/config";
@@ -20,6 +21,7 @@ import { apiRequest } from "../utils/api";
  *   numu app status             versions, statuses and NUMU's notes
  *   numu app publish            make the approved version live
  *   numu app install --store    install on one of your development stores
+ *   numu app webhook trigger    send your endpoint a signed sample delivery
  */
 
 const MANIFEST = "numu.app.json";
@@ -204,6 +206,54 @@ const install = new Command("install")
     console.log(`✓ Installed ${app.slug} on development store ${opts.store}`);
   });
 
+/**
+ * Sign exactly like NUMU: `X-NUMU-Signature-V1: t=<unix>,v1=<hex HMAC-SHA256
+ * of "<t>.<raw body>">`, keyed with the app's client secret. With
+ * `--bad-signature` the key is wrong on purpose: your endpoint must answer 401
+ * (App Review Guidelines item 6).
+ */
+const trigger = new Command("trigger")
+  .description("POST a signed sample delivery of <event> to your webhook URL")
+  .argument("<event>", "e.g. order.paid, app.uninstalled, store.redact")
+  .option(...dirOption)
+  .option("--secret <secret>", "Client secret (default: $NUMU_CLIENT_SECRET)")
+  .option("--bad-signature", "Sign with a wrong key; your endpoint should reject it")
+  .action(async (event: string, opts: { dir: string; secret?: string; badSignature?: boolean }) => {
+    const manifest = readManifest(opts.dir) as { webhooks?: { event: string; url: string }[] };
+    const hook = manifest.webhooks?.find((w) => w.event === event);
+    if (!hook) fail(`numu.app.json subscribes no URL to ${event}`);
+    const secret = opts.secret ?? process.env.NUMU_CLIENT_SECRET;
+    if (!secret) fail("Pass --secret or set NUMU_CLIENT_SECRET");
+    const body = JSON.stringify({
+      event,
+      timestamp: new Date().toISOString(),
+      data: { store_id: "00000000-0000-0000-0000-000000000000", sample: true },
+    });
+    const t = Math.floor(Date.now() / 1000);
+    const key = opts.badSignature ? secret + "-wrong" : secret;
+    const v1 = crypto.createHmac("sha256", key).update(`${t}.${body}`).digest("hex");
+    const res = await fetch(hook.url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-NUMU-Event": event,
+        "X-NUMU-Delivery": crypto.randomUUID(),
+        "X-NUMU-Timestamp": String(t),
+        "X-NUMU-Signature-V1": `t=${t},v1=${v1}`,
+      },
+      body,
+    });
+    if (opts.badSignature) {
+      if (res.status === 401) console.log(`✓ ${hook.url} rejected the bad signature (401)`);
+      else fail(`${hook.url} answered ${res.status} to a bad signature; it must answer 401`);
+    } else {
+      console.log(`${res.ok ? "✓" : "✗"} ${hook.url} answered ${res.status}`);
+      if (!res.ok) process.exit(1);
+    }
+  });
+
+const webhook = new Command("webhook").description("Test your webhook endpoint").addCommand(trigger);
+
 export const appCommand = new Command("app")
   .description("Build and publish a NUMU Partner App")
   .addCommand(init)
@@ -213,4 +263,5 @@ export const appCommand = new Command("app")
   .addCommand(submit)
   .addCommand(status)
   .addCommand(publish)
-  .addCommand(install);
+  .addCommand(install)
+  .addCommand(webhook);

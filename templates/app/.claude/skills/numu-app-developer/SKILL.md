@@ -151,9 +151,11 @@ Run `numu app validate` before every submit.
 ```
 
 **Scopes** use the same strings as the rest of the API: `<domain>:read` or `<domain>:write`.
-- **Domains:** `catalog`, `media`, `orders`, `customers`, `analytics`, `marketing`, `risk`, `settings`, plus `messages` for apps.
+- **Domains for apps:** `catalog`, `media`, `orders`, `customers`, `analytics`, `marketing` and `themes:read`, plus `messages` (customer conversations). `risk` is **read-only** for apps (`risk:read`).
 - **`:write` does not imply `:read`.** Ask for both when you need both.
-- **Never grantable to apps:** themes publishing, staff, billing, payment credentials, domains and token management.
+- **Never grantable to apps:** `settings:read` / `settings:write` (the store's settings, payment credentials and proofs, billing, publishing and its other apps), `risk:write` and `themes:write`, plus staff, domains and token management. A manifest that asks for them is rejected, and a request that needs them answers `403`.
+- **Each webhook event needs its read scope:** `order.*` needs `orders:read` (an order carries the shopper's name, phone and address), and `product.*` needs `catalog:read`. Your manifest must request it. You receive the event only on stores that granted it; if it is an optional scope the merchant declined, you don't.
+- **Privacy policy:** `developer.privacy_policy_url` is required for any `:write` scope and for `customers:read`, `orders:read`, `risk:read` and `messages:read`.
 
 **Rules:**
 - Every human-readable string needs `ar` + `en`, and the Arabic is real Egyptian Arabic, not a copy of the English.
@@ -299,7 +301,7 @@ The reviewer runs this list. Run it first.
 3. The Arabic name, tagline, description, captions and settings labels are real Egyptian Arabic and differ from the English.
 4. The settings form looks right in Arabic (RTL) and English in the hub.
 5. After uninstalling, your server makes no calls for that store and has deleted its token.
-6. A webhook with a wrong `X-NUMU-Signature-V1` gets `401`.
+6. A webhook with a wrong `X-NUMU-Signature-V1` gets `401`. Test it with `numu app webhook trigger order.paid --bad-signature --secret <client secret>`: your endpoint must answer `401`.
 7. The privacy policy loads and names the customer data you use.
 8. The listed price is exactly what, and where, the merchant pays.
 9. The app does not pose as a NUMU feature or as a NUMU App.
@@ -341,7 +343,13 @@ Pricing: free | external (billed at https://…, EGP …/month)
 
 - **`free`**
 - **`external`:** you bill merchants on your own site. Say so on the listing; NUMU takes nothing.
-- **NUMU-billed** (monthly or one-time, in EGP): only when `developers.numueg.app/partners/selling` says it is available.
+- **NUMU-billed (`recurring`):** monthly or annual, in EGP. NUMU charges the merchant's NUMU wallet every period and pays you 80% by bank transfer, after a 30-day hold. **Not available yet**: it opens only when NUMU announces it in writing (`developers.numueg.app/partners/selling`). Until then a manifest with `recurring` is rejected. There is no one-time price.
+
+  ```json
+  "pricing": { "model": "recurring", "price_cents": 9900, "cycle": "monthly" }
+  ```
+
+  `price_cents` is in piasters (EGP 5 to 100,000). NUMU writes the listing label for you ("EGP 99 / month", "٩٩ ج.م في الشهر"). A store whose subscription lapses keeps your app for 3 days; then your token answers `402` and NUMU stops sending that store's webhooks until the merchant pays. The app is never uninstalled.
 - **Price in EGP.** Merchants are small businesses, and USD pricing is a hard sell.
 - A free tier or trial wins far more installs in this market than a paywall.
 
@@ -355,6 +363,8 @@ Pricing: free | external (billed at https://…, EGP …/month)
 | `403` JSON `"Access token lacks the '…' scope"` | The scope is missing from the manifest, or this merchant has not re-approved yet |
 | `403` on `/threads` or `/messages` | Apps need `messages:read`; `marketing` does not cover conversations for apps |
 | `401` for one store only | Uninstalled or suspended. Treat it as `app.uninstalled` |
+| `402` JSON `"code": "subscription_inactive"` | A paid app whose subscription on this store lapsed (after 3 days' grace). Pause work for that store; it resumes when the merchant pays. Don't treat it as an uninstall |
+| `403` JSON `"Access token does not permit this operation"` | The route needs a scope apps can never hold (e.g. anything under `settings`) |
 | The signature never matches | The body was parsed or re-serialised before hashing; `t.` was not prepended; the webhook (`t=…,v1=`) and query-string (sorted `k=v`) schemes were mixed up; or an old secret was used |
 | `invalid_grant` | The code is older than 10 minutes, was already used, or `redirect_uri` is not byte-identical |
 | A `404` that "should exist" | A missing or extra trailing slash (§ 3.1) |
