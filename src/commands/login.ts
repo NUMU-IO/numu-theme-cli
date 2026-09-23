@@ -59,8 +59,10 @@ export const loginCommand = new Command("login")
       if (res.status === 200 && res.data?.requires_2fa) {
         console.error(
           "\nLogin failed: this account has 2FA enabled. " +
-            "The CLI cannot complete a 2FA challenge — generate an API token " +
-            "in the dashboard and run `numu-theme login --token <token>`.",
+            "The CLI cannot complete a 2FA challenge. For theme commands, generate an API " +
+            "token in the dashboard and run `numu-theme login --token <token>`. " +
+            "`numu app` commands do not accept API tokens: use the partner portal at " +
+            "https://merchant.numueg.app/partners instead.",
         );
         process.exit(1);
       } else if (res.status === 200 && res.data?.tokens?.access_token) {

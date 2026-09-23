@@ -1,124 +1,102 @@
 ---
 name: numu-app-developer
-description: Guide an outside developer (a NUMU partner) through building, testing, submitting, publishing and selling a Partner App on NUMU, the Arabic-first e-commerce platform for Egyptian and MENA merchants. Covers the partner program, development stores, the numu.app.json manifest, OAuth install, app tokens and scopes, signed webhooks (X-NUMU-Signature-V1), the "Open app" link-out, hub settings forms, Arabic/RTL and Egyptian-market rules, the App Review checklist, versioning, uninstall and privacy (PDPL 151/2020), and pricing. Use when someone is building a NUMU app, integrating a SaaS with many NUMU stores, preparing a NUMU app for review, debugging a NUMU OAuth or webhook flow, or asking how to sell an app to NUMU merchants.
+description: Guide an outside developer (a NUMU partner) through building, testing, submitting and publishing a Partner App for NUMU, the Arabic-first e-commerce platform for Egyptian and MENA merchants. A Partner App is third-party software on the developer's own server that merchants install from the NUMU App Store. Covers the partner program, development stores, registering an app in the partner portal or with the `numu` CLI, the numu.app.json manifest, scopes, the OAuth install and numu_app_ tokens, signed links (install redirect, Open app), webhooks signed with X-NUMU-Signature-V1, uninstall and store.redact (PDPL 151/2020), Arabic/RTL and Egyptian-market rules, the ten review checks, publishing, pricing and troubleshooting. Use when someone builds a NUMU app, connects a SaaS to many NUMU stores, prepares a NUMU app for review, or debugs a NUMU OAuth or webhook flow. Not for NUMU's own first-party apps.
 ---
 
-# Build and sell a Partner App on NUMU
+# Build a NUMU Partner App
 
-You are helping a developer who does **not** work at NUMU build an app that NUMU merchants install from the App Store in their dashboard (the "merchant hub"). Take them through the path in order, enforce the rules as they build, and aim for approval on the first submission.
+You are helping a developer who does **not** work at NUMU. They are building an app that NUMU merchants install from the App Store in their dashboard. Take them through the path in order. Enforce the rules in every file you write, and aim for approval on the first submission.
 
 ---
 
 ## 0. Before anything else
 
-1. **Check what is live.** Features ship in phases. The source of truth is:
-   - **Guides:** `https://developers.numueg.app`. Start at `/apps/getting-started`; the API guides are under `/api/*`.
-   - **Endpoint reference:** `https://docs.numueg.app` (interactive, generated from the OpenAPI contract).
-   - **The contract itself:** `https://numueg.app/api/v1/public/openapi.json`. Each operation names its scope in `x-numu-scope`.
+1. **The docs win.** The source of truth is the developer docs at **https://docs.numueg.app/-partner-apps-2440012m0**, together with the rest of **https://docs.numueg.app**. When this skill and the docs disagree, follow the docs and say so. The machine-readable contract is `https://numueg.app/api/v1/public/openapi.json`, and each operation names its scope in `x-numu-scope`.
+2. **Check the status notes on the docs pages before relying on these three:**
+   - **The partner program is a private beta, by invitation.** While it is closed, `/partners` says "The Partner program isn't open yet" and the partner API answers `404`. Invitations: engineering@numueg.app.
+   - **The `numu` CLI ships in `@numueg/theme-cli` 0.9.0.** If `npm view @numueg/theme-cli version` shows an older version, use the partner portal for every step.
+   - **Order and product webhooks may not carry `data.store_id` yet.** The Changelog says when it lands.
+3. **Pick the right kind of integration:**
 
-   If the docs say a feature is "coming later", do not build against it, even though this skill describes it. **When this skill and the docs disagree, the docs win.** Say so to the developer.
-2. **Pick the right kind.** NUMU has four:
-
-   | Kind | For |
+   | Building | Use |
    |---|---|
-   | **Partner App** | Something **many merchants install**. This skill is for this kind |
-   | **Private integration** | Connecting **one merchant's own systems**. It needs no app and no review: the merchant mints a personal access token (`numu_pat_…`) in Settings → Developers, following `developers.numueg.app/api/quickstart` |
-   | **NUMU Apps** | Built by NUMU itself: WhatsApp, Inbox, Nimo |
-   | **Core** | The platform itself |
+   | Something for **one** store: their own shop, an ERP sync, an internal tool | A personal access token (`numu_pat_…`), with no app and no review. Send them to https://docs.numueg.app/authentication-2433451m0 and stop here |
+   | Something **many** merchants install | A Partner App: this skill |
 
-   If the developer is building for one store, send them to the Private-integration quickstart and stop here.
-3. **Pick the app type:**
-   - **Connected app:** runs on the developer's server and talks to NUMU through the API and webhooks. Available first, and it covers almost everything: shipping, accounting, ERP, marketing, loyalty, fraud checks, feeds.
-   - **Storefront extension:** a React component inside the store's pages. Open only when the docs say so.
-4. **Ask for their stack.** The examples use Node and Python. Translate them faithfully, and never drop a security step.
+   NUMU's own apps (WhatsApp, Inbox and others) are built inside NUMU. They are not open to outside developers.
+4. **Only connected apps exist.** The app runs on the developer's server and talks to NUMU through the API and webhooks: `"type": ["connected"]`. Storefront extensions (code inside the shop's pages) are not open.
+5. **Ask for their stack.** The examples here use Node and Python. Translate them faithfully, and never drop a security step.
 
 ---
 
-## 1. The full path
+## 1. The path
 
 | # | Step | Where | Done when |
 |---|---|---|---|
-| 1 | Create a NUMU account and verify the email | `https://merchant.numueg.app` | Can log in |
-| 2 | Apply to the Partner program; accept the Partner Agreement + App Review Guidelines | `https://merchant.numueg.app/partners/apply` (policies at `developers.numueg.app/partners/policies`) | Status **approved** (manual review, email) |
-| 3 | Install the CLI and log in | `npm i -g @numueg/theme-cli` → `numu login --token <PAT>` | `numu app --help` works |
-| 4 | Create a development store; seed sample data | Hub → `/partners` → Development stores | A store with Arabic products and COD orders |
-| 5 | Scaffold | `numu app init <slug>` | A folder with `numu.app.json` and this skill in `.claude/skills/` |
-| 6 | Register the app | `numu app validate` → `numu app create` | `client_id` and `client_secret` printed **once**: put the secret in your server's env now |
-| 7 | Build: OAuth, API calls, webhooks, settings | Your server | § 3 done |
-| 8 | Install on your dev store and test | `numu app install --store <dev-store>` | § 6 self-review passes |
-| 9 | Version and submit | bump `version` in `numu.app.json` → `numu app version` → `numu app submit` | **submitted** |
-| 10 | Answer review | `numu app status`, or Hub → `/partners/apps` → your app | **approved** (target ≤ 5 business days); on *changes requested*, fix, bump the version, upload and submit again |
-| 11 | Publish | `numu app publish`, or the portal | **published**; NUMU then decides when to list it in the App Store |
-| 12 | Support, update, get paid | Portal | Ongoing |
+| 1 | Create a NUMU account and verify the email | `https://merchant.numueg.app` → **Create Account** | They can sign in |
+| 2 | Apply to the partner program | `https://merchant.numueg.app/partners` | **You're a NUMU partner** |
+| 3 | Create a development store | Portal → **Development stores** | A store at `<subdomain>.numueg.app` |
+| 4 | Register the app | Portal → **Your apps** → **New app**, or `numu app create` | `client_id` (`numu_ci_…`) and `client_secret` (`numu_cs_…`) in the server's environment |
+| 5 | Write and upload `numu.app.json` | Portal → **Upload a version**, or `numu app version` | A **Draft** version |
+| 6 | Build: OAuth callback, API calls, webhooks | Their server | § 4 to § 7 done |
+| 7 | Install on the development store and test | A consent link (§ 4.6) | § 10 self-review passes |
+| 8 | Submit | **Submit for review**, or `numu app submit` | **Submitted**, then **In review** |
+| 9 | Answer review | The portal, or `numu app status` | **Approved: ready to publish** |
+| 10 | Publish | **Publish**, or `numu app publish` | **Live**. NUMU then lists it in the App Store |
 
-When the installed CLI differs from this table, trust `numu app --help` and the docs.
+Step-by-step with every portal label: https://docs.numueg.app/register-your-app-2440014m0.
 
 ---
 
 ## 2. Rules that are never broken
 
-These are review blockers, or grounds for suspension. Enforce them in every file you write.
+These block approval, or get an app suspended.
 
 ### Security
-- **Secrets:** never log, commit or print the `client_secret`, access tokens, or webhook bodies that hold customer data. Keep them in environment variables, and keep `.env*` in `.gitignore`.
-- **Webhooks:** verify every webhook's `X-NUMU-Signature-V1` in constant time before parsing, and reject stale timestamps. **Return 401 on a bad signature.** The reviewer sends a bad one, and accepting it is an automatic rejection.
-- **OAuth redirect and "Open app":** verify the `hmac` on every one, and reject a timestamp older than 5 minutes.
-- **Check `state`** on the OAuth callback.
-- **Isolate stores:** scope everything by `store_id`. One merchant's data must never leak into another's session.
-- **HTTPS only:** no IP literals and no localhost in a submitted manifest. For local development, use a tunnel such as ngrok or Cloudflare Tunnel.
+- **Secrets:** never log, commit or print the client secret, access tokens, or webhook bodies that hold customer data. Keep them in environment variables, and keep `.env*` in `.gitignore`.
+- **Webhooks:** verify `X-NUMU-Signature-V1` in constant time, on the raw body, before parsing, and reject stale timestamps. **Answer `401` to a bad signature.** The reviewer sends one.
+- **Signed links:** verify the `hmac` on the install redirect and on **Open app**, and reject a `timestamp` older than 5 minutes.
+- **Store isolation:** key everything by `store_id`. One merchant's data must never reach another merchant's session.
+- **HTTPS only:** every URL in the manifest is public `https://`. No IP literals, no `localhost`, no `.local`. For local development, use a tunnel such as ngrok or Cloudflare Tunnel.
 
 ### Data and privacy (Egypt PDPL 151/2020)
-- **Scopes:** request the fewest that work, and justify each one in the submission. Anything touching customers, or any `:write`, requires a privacy policy URL.
-- **Conversations need `messages:read`.** Customer conversations (Inbox threads, messages, WhatsApp) require the `messages` scope. `marketing` does **not** grant them to apps. Ask for `messages` only if the app truly handles conversations.
-- **Handle `app.uninstalled`:** stop, delete the token, and never call the API for that store again.
-- **Handle the privacy events** when the docs list them: `customer.data_request`, `customer.redact`, `store.redact`. `store.redact` arrives 48 hours after uninstall; delete everything held for that store.
-- **Keep data to the app's purpose:** no copying merchant or customer data into analytics, ML training or anything else that is not needed to run the app.
+- **Scopes:** request the fewest that work, and justify each one. Any `:write` scope, and `customers:read`, `orders:read`, `risk:read` or `messages:read`, requires `developer.privacy_policy_url`.
+- **Conversations need `messages`.** The inbox, messages, channels and WhatsApp need `messages:read` or `messages:write`. For apps, `marketing` does not cover them.
+- **On `app.uninstalled`:** stop, delete the token, and never call the API for that store again.
+- **On `store.redact`:** delete everything held about that store and its customers. It arrives 48 hours after an uninstall, and only if the manifest lists it: always list it.
+- **Purpose only:** don't copy merchant or customer data into analytics, ML training, or anything the app does not need to run.
 
 ### Honesty
 - **Listing:** it must match the app. No invented features, fake reviews or fake counts.
-- **Pricing:** state it honestly. If you bill merchants yourself (`external`), the listing says so in Arabic and English.
-- **Branding:** no NUMU branding, and nobody else's, in the name, icon or copy. The "من نُمُو" badge is only for NUMU's own apps.
+- **Pricing:** state it exactly. With `external` pricing, the listing says what the merchant pays and where.
+- **Branding:** no NUMU branding, and nobody else's. Never pose as a NUMU feature.
 
 ### Platform
-- **Access:** only the public API and webhooks. No scraping of the hub or storefront, no private endpoints, and no automating a merchant's browser session.
-- **Storefront extensions** (when open): no DOM access outside your root; no direct `fetch`, XHR, `WebSocket` or `sendBeacon` (use `useAppProxy`); no `localStorage` or cookies; logical CSS only.
+- **Access:** only the public API and webhooks. No scraping the dashboard or the storefront, no private endpoints, no automating a merchant's browser.
 
 ---
 
-## 3. Building a connected app
+## 3. The manifest: `numu.app.json`
 
-### 3.1 The API conventions (shared with every NUMU integration)
+Full reference: https://docs.numueg.app/app-manifest-2440015m0. Unknown fields are refused. Check with `numu app validate`, or by uploading.
 
-| | Value |
-|---|---|
-| Base URL | `https://numueg.app/api/v1` (`https://api.numueg.app/api/v1` is the same API) |
-| Auth header | `Authorization: Bearer numu_app_…` |
-| Success | `{"success": true, "data": …, "message": "…"}`. Read `data`; never parse `message` |
-| Failure | `{"detail": "…"}` + HTTP status |
-| Money | **Integer piasters** (EGP × 100) unless a field says otherwise |
-| IDs / times | UUID strings / UTC ISO 8601 |
-| Trailing slashes | Significant: collections `/orders/`, items `/orders/{id}`. No redirect between them |
-| Rate limit | **300 requests/minute per token**; `X-RateLimit-Remaining`; `429` + `Retry-After`. Back off with jitter |
-| Retries of writes | Send `Idempotency-Key` on `POST` / `PUT` / `PATCH`: a repeat returns the first response; `409` while the first is still running |
-| Identity check | `GET /auth/api-key/me` returns the store, scopes and `app_slug`. Call it at startup |
-| Versioning | `v1` never removes or retypes fields. Enums may grow, so ignore unknown values rather than crash |
-
-### 3.2 The manifest: `numu.app.json`
-
-Run `numu app validate` before every submit.
-
-```jsonc
+```json
 {
-  "$schema": "https://developers.numueg.app/schemas/app-manifest-v1.json",
   "manifest_version": 1,
-  "slug": "my-shipping-sync",
+  "slug": "shipping-sync",
   "version": "1.0.0",
   "type": ["connected"],
-  "name":        { "ar": "مزامنة الشحن", "en": "Shipping Sync" },
-  "tagline":     { "ar": "ابعت طلباتك لشركة الشحن بضغطة", "en": "Send orders to your courier in one click" },
-  "description": { "ar": "…", "en": "…" },
-  "icon": "assets/icon.png",
-  "screenshots": [{ "src": "assets/1.png", "caption": { "ar": "…", "en": "…" } }],
+  "name": { "ar": "مزامنة الشحن", "en": "Shipping Sync" },
+  "tagline": { "ar": "ابعت طلباتك لشركة الشحن بضغطة واحدة", "en": "Send orders to your courier in one click" },
+  "description": {
+    "ar": "كل طلب جديد بيوصل لشركة الشحن لوحده، من غير ما تكتب العنوان تاني. وتقدر تتابع كل شحنة من مكان واحد.",
+    "en": "Every new order goes to your courier on its own, with no retyping. Track every shipment in one place."
+  },
+  "icon": "https://cdn.example.com/shipping-sync/icon-512.png",
+  "screenshots": [
+    { "src": "https://cdn.example.com/shipping-sync/shipments.png",
+      "caption": { "ar": "كل الشحنات قدامك في صفحة واحدة", "en": "Every shipment on one page" } }
+  ],
   "category": "shipping",
   "developer": {
     "support_email": "support@example.com",
@@ -130,72 +108,183 @@ Run `numu app validate` before every submit.
   "oauth": {
     "redirect_urls": ["https://app.example.com/numu/callback"],
     "scopes": ["orders:read", "orders:write"],
-    "optional_scopes": []
+    "optional_scopes": ["catalog:read"]
   },
   "webhooks": [
-    { "event": "order.paid",      "url": "https://app.example.com/numu/webhooks" },
-    { "event": "app.uninstalled", "url": "https://app.example.com/numu/webhooks" }
+    { "event": "order.paid", "url": "https://app.example.com/numu/webhooks" },
+    { "event": "order.status_changed", "url": "https://app.example.com/numu/webhooks" },
+    { "event": "app.uninstalled", "url": "https://app.example.com/numu/webhooks" },
+    { "event": "store.redact", "url": "https://app.example.com/numu/webhooks" }
   ],
   "settings_schema": [
-    { "id": "default_courier", "type": "select",
-      "label": { "ar": "شركة الشحن الافتراضية", "en": "Default courier" },
-      "options": [
-        { "value": "bosta",  "label": { "ar": "بوسطة",  "en": "Bosta" } },
-        { "value": "mylerz", "label": { "ar": "مايلرز", "en": "Mylerz" } }
-      ],
-      "default": "bosta" }
+    { "id": "auto_send", "type": "checkbox", "default": true,
+      "locales": { "ar": { "label": "ابعت الطلبات أوتوماتيك" }, "en": { "label": "Send orders automatically" } } }
   ],
   "pricing": { "model": "free" },
   "languages": ["ar", "en"]
 }
 ```
 
-**Scopes** use the same strings as the rest of the API: `<domain>:read` or `<domain>:write`.
-- **Domains for apps:** `catalog`, `media`, `orders`, `customers`, `analytics`, `marketing` and `themes:read`, plus `messages` (customer conversations). `risk` is **read-only** for apps (`risk:read`).
-- **`:write` does not imply `:read`.** Ask for both when you need both.
-- **Never grantable to apps:** `settings:read` / `settings:write` (the store's settings, payment credentials and proofs, billing, publishing and its other apps), `risk:write` and `themes:write`, plus staff, domains and token management. A manifest that asks for them is rejected, and a request that needs them answers `403`.
-- **Each webhook event needs its read scope:** `order.*` needs `orders:read` (an order carries the shopper's name, phone and address), and `product.*` needs `catalog:read`. Your manifest must request it. You receive the event only on stores that granted it; if it is an optional scope the merchant declined, you don't.
-- **Privacy policy:** `developer.privacy_policy_url` is required for any `:write` scope and for `customers:read`, `orders:read`, `risk:read` and `messages:read`.
+**Rules the API enforces:**
+- **`slug`** matches `^[a-z][a-z0-9-]{2,40}$`, is the one registered, and never changes.
+- **`version`** is `MAJOR.MINOR.PATCH`, and every upload is higher than the last.
+- **`name`, `tagline` and `description`** each have `ar` and `en`, and **the two must differ**: a copy of the English in `ar` is refused. A tagline is at most 80 characters and a description at most 4,000, in each language.
+- **`icon`** and every screenshot `src` are `https://` URLs, not file paths. There are at most 8 screenshots.
+- **`category`** is one of `shipping`, `marketing`, `sales`, `customer_support`, `inventory`, `analytics`, `payments`, `store_design`, `productivity` or `other`.
+- **`oauth.redirect_urls`** holds 1 to 10 URLs. The App Store's **Install** uses the **first**. `oauth.scopes` has at least one scope.
+- **`webhooks`** must include `app.uninstalled`. Every `order.*` event needs `orders:read`, and every `product.*` event needs `catalog:read`, in `scopes` or `optional_scopes`.
+- **`settings_schema`** fields:
+  - A field needs `locales.ar.label` and `locales.en.label`. It is **not** `label: {ar, en}`.
+  - `header` and `paragraph` need `locales.<lang>.content` and have no `id`.
+  - Ids match `^[a-z][a-z0-9_]{0,40}$`.
+  - Types: `text`, `textarea`, `number`, `range`, `color`, `checkbox`, `select`, `radio`, `url`, `header` and `paragraph`.
+  - `select` and `radio` need `options`: `{ "value": "bosta", "label": "Bosta", "locales": { "ar": { "label": "بوسطة" } } }`.
+- **`pricing.model`** is `free`, or `external` (the partner bills the merchant; `pricing.label` in both languages is required). `recurring` (NUMU billing) is **not open**: a manifest with it is refused.
 
-**Rules:**
-- Every human-readable string needs `ar` + `en`, and the Arabic is real Egyptian Arabic, not a copy of the English.
-- `app.uninstalled` is always subscribed.
-- Every settings field needs `label.ar` and `label.en`.
-- Adding a scope in a later version makes every merchant re-approve before it works, so plan scopes up front.
+**Scopes for apps:**
+- **Allowed:** `catalog`, `media`, `orders`, `customers`, `analytics`, `marketing` and `messages`, each `:read` or `:write`, plus `themes:read` and `risk:read`.
+- **Never grantable:** `settings:read`, `settings:write`, `themes:write` and `risk:write`. That means no store settings, locations, shipping settings, payments, invoices, billing, or the store's other apps.
+- **`:write` does not imply `:read`.**
+- Adding a scope in a later version makes every merchant approve again, so plan scopes up front.
 
-### 3.3 The OAuth install
+**The settings form is display-only for the app.** The dashboard shows it to merchants and saves their answers, but no API returns the values to an app token. Put any setting your server needs on your own page behind **Open app**.
 
-1. The merchant clicks **Install** and approves NUMU's consent screen. NUMU redirects to your `redirect_url` with `?code=…&store_id=…&state=…&timestamp=…&hmac=…`.
-2. **Verify** the `hmac` (§ 3.5), `state`, and that the timestamp is under 5 minutes old.
-3. **Exchange** the code within 10 minutes. It works once.
+---
+
+## 4. The OAuth install
+
+Reference: https://docs.numueg.app/oauth-and-app-tokens-2440016m0.
+
+### 4.1 The flow
+1. The merchant clicks **Install** in the App Store. Only the store owner can approve. The consent screen lists the scopes as plain sentences.
+2. NUMU redirects to the callback: `?code=numu_code_…&store_id=…&state=…&timestamp=…&hmac=…`. If the merchant cancels, the callback gets `?error=access_denied&state=…`, with no code and no signature.
+3. **Verify** the `hmac` and the timestamp (§ 4.2). The app checks `state` only on flows it started itself (§ 4.5). On an App Store install, NUMU chose `state`, and the `hmac` is the proof.
+4. **Exchange** the code, from the server, within 10 minutes. A code works once.
 
    ```http
    POST https://numueg.app/api/v1/oauth/token
    Content-Type: application/json
 
-   { "client_id": "…", "client_secret": "…", "code": "…" }
+   { "client_id": "numu_ci_…", "client_secret": "numu_cs_…", "code": "numu_code_…" }
    ```
 
-   The response is `{"success": true, "data": {"access_token": "numu_app_…", "scopes": [...], "store_id": "…"}}`.
-4. **Store the token encrypted**, keyed by `store_id`. It does **not** expire: it works until the merchant uninstalls, NUMU suspends the app, a scope is removed, or you rotate the client secret. That is unlike a merchant's personal token, which expires.
-5. **Send the merchant somewhere useful**, in Arabic when `locale=ar`.
+   The response is `{"success": true, "data": {"access_token": "numu_app_…", "scopes": [...], "store_id": "…"}}`. There is no `redirect_uri` field and no refresh token.
+5. **Store the token encrypted**, keyed by `store_id`. Send the merchant to the app, in Arabic unless they chose English.
 
-### 3.4 Webhooks
+### 4.2 Verifying signed links (the install redirect and **Open app**)
+1. Take every query parameter except `hmac`, URL-decoded.
+2. Sort them by name and join them as `k=v&k=v`.
+3. Compute HMAC-SHA256 with the client secret, as lowercase hex.
+4. Compare in constant time, and reject a `timestamp` older than 300 seconds.
 
-This is the same system every NUMU integration uses (`developers.numueg.app/api/webhooks`). The only difference for apps: **your subscriptions come from the manifest, and deliveries are signed with your app's client secret.**
+This is **not** the webhook scheme: there is no `t=` prefix and no body.
+
+```python
+import hashlib, hmac, time
+from urllib.parse import parse_qsl
+
+def verify_signed_query(query_string: str, secret: str, max_age: int = 300) -> bool:
+    params = dict(parse_qsl(query_string, keep_blank_values=True))
+    given = params.pop("hmac", "")
+    message = "&".join(f"{k}={params[k]}" for k in sorted(params))
+    expected = hmac.new(secret.encode(), message.encode(), hashlib.sha256).hexdigest()
+    try:
+        fresh = abs(time.time() - int(params["timestamp"])) <= max_age
+    except (KeyError, ValueError):
+        return False
+    return fresh and hmac.compare_digest(expected, given)
+```
+
+Keep `state` to letters, digits, `-` and `_`. Give `app_url` no query string of its own: NUMU signs only the parameters it adds.
+
+### 4.3 Exchange errors
+Errors come in the envelope `{"success": false, "error": {"code": "HTTP_ERROR", "message": "…"}}`.
+
+| Status | Message | Fix |
+|---|---|---|
+| `401` | `invalid client credentials` | Wrong id or secret, or a rotated secret |
+| `400` | `invalid, expired or already used code` | Codes last 10 minutes and work once. Install again |
+| `400` | `grant_type must be authorization_code` | Omit `grant_type`, or send `authorization_code` |
+
+### 4.4 The token
+- It works for **one store**, within the granted scopes, on every merchant plan, and it **does not expire**.
+- It dies with `401 Invalid or revoked app token` when:
+  - the merchant uninstalls or disables the app;
+  - NUMU suspends the app, or pauses all partner apps;
+  - a newer code is exchanged for the same store, after a 24-hour overlap;
+  - the app revokes it with `POST /oauth/revoke {client_id, client_secret, token}`.
+- **Rotating the client secret does not affect tokens.**
+- A `401` on one store means that store is gone: stop its jobs and delete the token.
+
+### 4.5 Asking for more scopes, or reconnecting
+Send the merchant to:
+
+```
+https://merchant.numueg.app/oauth/authorize?client_id=…&store_id=…&redirect_uri=<exactly one redirect_url, URL-encoded>&scope=<every required scope plus any optional ones, space-separated>&state=<random>
+```
+
+Check `state` on return. The new token replaces the old one, and the old one keeps working for 24 hours.
+
+### 4.6 Testing before publishing
+The App Store lists only published apps. An unpublished app installs only on the partner's own development stores, through the § 4.5 link opened by the partner.
+
+The portal does not show store ids. To get one:
+1. Open the development store in the dashboard.
+2. Go to **Settings → API & webhooks**, create a key with one read scope, and call `GET https://numueg.app/api/v1/auth/api-key/me`. It returns `data.store_id`.
+3. Delete the key.
+
+The portal's **Install on a development store** adds the app with no token, so it does not test the server.
+
+---
+
+## 5. Calling the API
+
+| | Value |
+|---|---|
+| Base URL | `https://numueg.app/api/v1` (`https://api.numueg.app/api/v1` is the same API) |
+| Auth | `Authorization: Bearer numu_app_…` |
+| Store routes | `/stores/{store_id}/…`. Any other store answers `403 Access token is bound to a different store` |
+| Success | `{"success": true, "data": …, "message": …}`. Read `data`; never parse `message` |
+| Failure | `{"success": false, "error": {"code": …, "message": …}}`. Validation errors add `error.details: [{field, message, type}]` |
+| Money | Integer piasters (EGP × 100), unless a field says otherwise |
+| IDs and times | UUID strings, and UTC ISO 8601 |
+| Trailing slashes | Collections end in `/` (`/orders/`), items don't (`/orders/{id}`). There is no redirect between them |
+| Rate limit | 300 requests a minute per token. On `429`, wait `Retry-After`, then back off with jitter |
+| Writes | Send `Idempotency-Key` on `POST`, `PUT` and `PATCH`. A repeat returns the first response; `409` means the first is still running |
+| Identity | `GET /auth/api-key/me` returns `app_slug`, `store_id`, `store_name`, `subdomain`, `currency`, `default_language` and `scopes`. Call it at startup |
+| Versioning | `v1` never removes or retypes fields. Enums grow, so ignore unknown values |
+
+Scope errors: `403 Access token lacks the '<scope>' scope` means the scope was not granted. `403 Access token does not permit this operation` means apps can never reach that route.
+
+---
+
+## 6. Webhooks
+
+Reference: https://docs.numueg.app/app-webhooks-2440017m0. The manifest is the subscription: when a merchant approves, NUMU subscribes the manifest's URLs to the events whose read scope was granted. An app token cannot call the webhooks API.
 
 **Headers:**
 - `X-NUMU-Event`
-- `X-NUMU-Delivery`: the same across retries; **dedupe on it**
+- `X-NUMU-Delivery`: the same across retries. **Dedupe on it.**
 - `X-NUMU-Timestamp`
-- **`X-NUMU-Signature-V1: t=<ts>,v1=<hex>`**, where `v1` = HMAC-SHA256 of **`"<ts>.<raw body>"`** with your client secret
+- `X-NUMU-Signature-V1: t=<ts>,v1=<hex>`, where `v1` is HMAC-SHA256 of `"<ts>.<raw body>"` keyed with the **client secret**
+- `X-NUMU-Signature: sha256=…`, a legacy body-only signature. Prefer V1.
+
+**Body:** `{"event": "order.paid", "timestamp": "…", "data": {…}}`.
+
+**Events:**
+- `order.created`, `order.paid`, `order.status_changed`: need `orders:read`. `order.status_changed` carries `new_status` and `tracking_number`, so it is the shipping event.
+- `product.created`, `product.updated`, `product.deleted`: need `catalog:read`.
+- `app.uninstalled` (required) and `store.redact`: need no scope.
+
+**Which store:** lifecycle events carry `data.store_id`. Order and product events carry it once the API release that adds it is live; check the Changelog. Until then, test with one development store at a time.
 
 **Delivery:**
-- At least once, possibly out of order. Upsert by resource id.
-- Answer `200` fast and do the work in a queue.
-- Endpoints that fail for days are disabled, and you are emailed.
-
-**Node (Express):**
+- Reply `2xx` within **10 seconds**; queue the work.
+- Deliveries are at least once, not in order. Upsert by resource id.
+- A failure is retried 5 times: after 10 seconds, 30 seconds, 2 minutes, 10 minutes and 30 minutes. After the last attempt NUMU switches off that store's subscription and notifies the merchant. It comes back only when the merchant approves again (§ 4.5), because the token exchange recreates the subscriptions.
+- `410 Gone` switches the subscription off at once.
+- `app.uninstalled` and `store.redact` get **one attempt, no retry**. Also treat a `401` as an uninstall, and run a cleanup 48 hours later.
+- While the app is disabled on a store, suspended or paused, don't count on that store's events arriving later: re-read what changed from the API when it comes back.
 
 ```js
 import crypto from "node:crypto";
@@ -211,174 +300,120 @@ function verify(rawBody, header, secret, toleranceSeconds = 300) {
 }
 
 const app = express();
-// raw body is required: re-serialised JSON never matches the signature
+// The raw body is required: re-serialised JSON never matches the signature.
 app.post("/numu/webhooks", express.raw({ type: "application/json" }), async (req, res) => {
   if (!verify(req.body, req.get("X-NUMU-Signature-V1"), process.env.NUMU_CLIENT_SECRET)) {
     return res.sendStatus(401);
   }
   const deliveryId = req.get("X-NUMU-Delivery");
   if (await alreadyProcessed(deliveryId)) return res.sendStatus(200);
-  res.sendStatus(200);                                  // answer first, work after
+  res.sendStatus(200); // answer first, work after
   await queue.add({ deliveryId, event: req.get("X-NUMU-Event"), payload: JSON.parse(req.body) });
 });
 ```
 
-**Python:**
-
-```python
-import hashlib, hmac, time
-
-def verify(raw_body: bytes, header: str, secret: str, tolerance: int = 300) -> bool:
-    try:
-        parts = dict(p.strip().split("=", 1) for p in header.split(","))
-        if abs(time.time() - int(parts["t"])) > tolerance:
-            return False
-    except (KeyError, ValueError):
-        return False
-    expected = hmac.new(secret.encode(), f"{parts['t']}.".encode() + raw_body, hashlib.sha256).hexdigest()
-    return hmac.compare_digest(expected, parts.get("v1", ""))
-```
-
-**Event names** are dotted: `order.created`, `order.paid`, `order.status_changed` (it carries `new_status` and `tracking_number`, so it is your shipping event), `product.created`, `product.updated`, `product.deleted` and `app.uninstalled`. Subscribe only to events listed on the docs page. NUMU refuses events it does not publish.
-
-**On `app.uninstalled`:** mark the store inactive, delete the token and stop its jobs.
-
-### 3.5 Verifying the OAuth redirect and "Open app"
-
-NUMU opens your `app_url` with `?store_id=…&locale=ar|en&timestamp=…&hmac=…`. The OAuth redirect uses the same scheme.
-
-`hmac` is the **hex** HMAC-SHA256, keyed with your client secret, of every other parameter, **URL-decoded, sorted by key and joined as `k=v&k=v`**. It is not the webhook format: there is no `t=` prefix and no body.
-
-```python
-import hashlib, hmac, time
-
-def valid_query(params: dict, secret: str) -> bool:
-    params = dict(params)
-    given = params.pop("hmac", "")
-    msg = "&".join(f"{k}={params[k]}" for k in sorted(params))
-    calc = hmac.new(secret.encode(), msg.encode(), hashlib.sha256).hexdigest()
-    fresh = abs(time.time() - int(params.get("timestamp", 0))) < 300
-    return fresh and hmac.compare_digest(calc, given)
-```
-
-This proves the merchant came from the NUMU dashboard. It is not a login: look up your installation for `store_id`, then start your own session.
-
-### 3.6 Settings
-
-NUMU renders the merchant's settings form from `settings_schema`, in Arabic and English. Use it for simple choices, and your own dashboard behind "Open app" for anything complex.
+Test the endpoint with `numu app webhook trigger order.paid --secret "$NUMU_CLIENT_SECRET"`. Add `--bad-signature` to check that it answers `401`.
 
 ---
 
-## 4. Designing for Egyptian merchants
+## 7. Open app
 
-These are checked in review; the full guide is `developers.numueg.app/apps/designing-for-egypt`.
-
-- **Arabic first.** Write Egyptian colloquial (عامية مصرية), e.g. "اختار شركة الشحن", not MSA "يرجى اختيار شركة الشحن". Keep it short and warm.
-- **RTL in your own dashboard.** Use logical CSS only: `margin-inline-start`, `text-align: start`. Never `left` or `right`.
-- **Keep these LTR inside Arabic:** numbers, prices, phone numbers, order numbers, tracking codes, dates and code (`dir="ltr"` or `<bdi>`).
-- **Money is EGP.** Show `1,250 ج.م` or `EGP 1,250`. The API sends piasters: divide by 100.
-- **Cash on delivery dominates.** Orders are confirmed by phone or WhatsApp, so a pending order is normal. Build around `order.status_changed`, not payment capture.
-- **Phones are the identity.** Expect Egyptian numbers (`+20 1x xxxx xxxx`), and never require an email.
-- **Mobile first.** Merchants run their stores from their phones, so test at 375 px wide.
+The merchant's app page in the dashboard has a button that opens `app_url?store_id=…&locale=ar|en&timestamp=…&hmac=…`. Verify it like § 4.2. It proves the merchant came from the dashboard. It is not a login: look up the installation by `store_id` and start the app's own session. Render Arabic when `locale=ar`.
 
 ---
 
-## 5. Storefront extensions (only when the docs say they are open)
+## 8. Designing for Egyptian merchants
 
-- **Placement:** you render inside a named slot (`<AppSlot name="…">`). Without your app, the theme's own markup renders there. One app per slot per store.
-- **APIs:** SDK hooks only. Reach your server with `useAppProxy(path)`.
-- **Build:** NUMU builds the bundle from source, and it must pass the size limit, the AST scan and the lint rules.
-- **Updates:** never silent. Merchants click **Apply**.
+Reviewers check these.
+- **Arabic first:** write Egyptian colloquial (عامية مصرية), for example "اختار شركة الشحن", not the formal "يرجى اختيار شركة الشحن". Keep it short and warm.
+- **RTL in the app's own pages:** use logical CSS only (`margin-inline-start`, `text-align: start`), never `left` or `right`.
+- **Keep these LTR inside Arabic:** numbers, prices, phone numbers, order numbers, tracking codes, dates and code. Use `dir="ltr"` or `<bdi>`.
+- **Money is EGP:** show `1,250 ج.م` or `EGP 1,250`. The API sends piasters, so divide by 100.
+- **Cash on delivery dominates:** orders are confirmed by phone or WhatsApp, so a pending order is normal. Build around `order.created` and `order.status_changed`, not only `order.paid`.
+- **Phones are the identity:** expect Egyptian numbers (`+20 1x xxxx xxxx`), and never require an email.
+- **Mobile first:** merchants run their stores from their phones. Test at 375 px wide.
 
 ---
 
-## 6. Self-review before submitting
+## 9. Registering, submitting and publishing
 
-The reviewer runs this list. Run it first.
+- **Sign in to the CLI:** `numu login` asks for the email and password. Accounts with 2FA cannot use the CLI yet, and a personal access token does not work for partner commands, so use the portal.
+- **Commands:**
+  - `numu app init <slug>` scaffolds the manifest and this skill.
+  - `numu app validate` checks the manifest.
+  - `numu app create` prints the client secret **once**.
+  - `numu app version` uploads a draft; `--notes-ar` and `--notes-en` add release notes.
+  - `numu app submit`, `numu app status`, `numu app publish`.
+  - `numu app install --store <id>` installs without a token.
+  - `numu app webhook trigger <event>` sends a signed test delivery.
+- **Submit:**
+  - Only a draft, or a version NUMU asked you to change, can be submitted.
+  - Only one version per app can be in review at a time.
+  - At submit, NUMU resolves every manifest URL and refuses private addresses.
+  - A newer upload replaces older drafts.
+- **Decisions:**
+  - **Approved: ready to publish** means publish when ready.
+  - **Changes requested** means fix, then submit again. Upload a higher version if the manifest changed.
+  - **Rejected** means read the notes, and don't resubmit it unchanged.
+- **Publish:** only an approved version can be published, and it must be newer than the live one. The app then shows **Not listed yet** until NUMU lists it in the App Store.
+- **Updates:** every manifest change is a new reviewed version. Merchants approve new scopes one store at a time (§ 4.5).
+- **Leaked secret:** rotate it on the app's page under **Credentials → Rotate secret**. The old secret stops working at once; tokens keep working.
+- **Suspension:** NUMU can suspend an app. Its tokens and webhooks stop at once.
 
-1. The app installs and completes OAuth on a **fresh** dev store.
-2. Every scope is used. Write one line per scope for the notes.
-3. The Arabic name, tagline, description, captions and settings labels are real Egyptian Arabic and differ from the English.
-4. The settings form looks right in Arabic (RTL) and English in the hub.
-5. After uninstalling, your server makes no calls for that store and has deleted its token.
-6. A webhook with a wrong `X-NUMU-Signature-V1` gets `401`. Test it with `numu app webhook trigger order.paid --bad-signature --secret <client secret>`: your endpoint must answer `401`.
-7. The privacy policy loads and names the customer data you use.
-8. The listed price is exactly what, and where, the merchant pays.
-9. The app does not pose as a NUMU feature or as a NUMU App.
-10. The support email answers within 2 business days.
+---
 
-**Also check:**
-- `numu app validate` passes
-- no secrets are in the repo
-- every URL is public HTTPS
-- `401`, `403`, `404` and `429` are handled
+## 10. Self-review: the ten checks reviewers run
 
-**Submission notes template:**
+Approval needs all ten:
+1. It installs and completes OAuth on a clean development store.
+2. Every scope is used and justified.
+3. The Arabic listing is real Egyptian Arabic, not formal Arabic and not a copy of the English.
+4. The settings form works right-to-left, in both languages.
+5. Uninstall is clean: the token is dead and `app.uninstalled` is handled.
+6. The webhook endpoint rejects a bad `X-NUMU-Signature-V1` (`numu app webhook trigger <event> --bad-signature`).
+7. The privacy policy covers the customer data requested.
+8. The listing price equals what is charged.
+9. The app does not misleadingly duplicate a core NUMU feature.
+10. Support answers within 2 business days.
+
+Also check that `numu app validate` passes, no secrets are in the repo, every URL is public `https://`, and `401`, `403`, `404`, `409` and `429` are handled.
+
+**Release notes for the reviewer:**
 
 ```
 What it does: …
-How to test (steps on a dev store): …
-Scopes: orders:read — to …; orders:write — to …
-Data stored and retention: …
+How to test on a development store: …
+Scopes: orders:read, to …; orders:write, to …
+Data stored and how long: …
 Pricing: free | external (billed at https://…, EGP …/month)
 ```
 
 ---
 
-## 7. Review, publishing and updates
+## 11. Troubleshooting
 
-- **Outcomes:**
-  - **approved**: publish.
-  - **changes requested**: fix, bump the version, and resubmit.
-  - **rejected**: the notes say why. Do not resubmit it unchanged.
-- **Listing:** after publishing, NUMU decides when the app appears in the catalog. Beta apps may show only to selected merchants.
-- **Ordering:** the catalog is ordered by relevance and rating. NUMU's own apps get a badge and a filter, not a boost. The fair-play rules are at `developers.numueg.app/partners/fair-play`.
-- **Updates:** every change to the manifest, the listing, scopes or URLs is a new version. Listing-only and no-scope-change versions clear faster.
-- **New scopes:** merchants must re-approve, so keep working with the old scopes until they do. `app.scopes_updated` tells you when.
-- **Leaked client secret:** rotate it in the portal. The old secret stops working immediately, so deploy the new one right away.
-
----
-
-## 8. Selling
-
-- **`free`**
-- **`external`:** you bill merchants on your own site. Say so on the listing; NUMU takes nothing.
-- **NUMU-billed (`recurring`):** monthly or annual, in EGP. NUMU charges the merchant's NUMU wallet every period and pays you 80% by bank transfer, after a 30-day hold. **Not available yet**: it opens only when NUMU announces it in writing (`developers.numueg.app/partners/selling`). Until then a manifest with `recurring` is rejected. There is no one-time price.
-
-  ```json
-  "pricing": { "model": "recurring", "price_cents": 9900, "cycle": "monthly" }
-  ```
-
-  `price_cents` is in piasters (EGP 5 to 100,000). NUMU writes the listing label for you ("EGP 99 / month", "٩٩ ج.م في الشهر"). A store whose subscription lapses keeps your app for 3 days; then your token answers `402` and NUMU stops sending that store's webhooks until the merchant pays. The app is never uninstalled.
-- **Price in EGP.** Merchants are small businesses, and USD pricing is a hard sell.
-- A free tier or trial wins far more installs in this market than a paywall.
-
----
-
-## 9. Troubleshooting
-
-| Symptom | Likely cause |
+| Symptom | Cause |
 |---|---|
-| `403` with an HTML body and `server: cloudflare` | The CDN, not the API. Retry with a normal `User-Agent`; if it persists, send the `cf-ray` value to partner support |
-| `403` JSON `"Access token lacks the '…' scope"` | The scope is missing from the manifest, or this merchant has not re-approved yet |
-| `403` on `/threads` or `/messages` | Apps need `messages:read`; `marketing` does not cover conversations for apps |
-| `401` for one store only | Uninstalled or suspended. Treat it as `app.uninstalled` |
-| `402` JSON `"code": "subscription_inactive"` | A paid app whose subscription on this store lapsed (after 3 days' grace). Pause work for that store; it resumes when the merchant pays. Don't treat it as an uninstall |
-| `403` JSON `"Access token does not permit this operation"` | The route needs a scope apps can never hold (e.g. anything under `settings`) |
-| The signature never matches | The body was parsed or re-serialised before hashing; `t.` was not prepended; the webhook (`t=…,v1=`) and query-string (sorted `k=v`) schemes were mixed up; or an old secret was used |
-| `invalid_grant` | The code is older than 10 minutes, was already used, or `redirect_uri` is not byte-identical |
-| A `404` that "should exist" | A missing or extra trailing slash (§ 3.1) |
-| `409` on a write | The same `Idempotency-Key` is still being processed. Wait and retry |
-| Arabic shows as `?` | Your stack is not UTF-8 end to end (use `utf8mb4` on MySQL) |
+| `401 Invalid or revoked app token` | Uninstalled, disabled, suspended, paused, replaced more than 24 hours ago, or revoked. Treat it as an uninstall |
+| `403 Access token lacks the '…' scope` | Not granted. Add it in a new version and ask the merchant to approve (§ 4.5) |
+| `403 Access token does not permit this operation` | A route apps can never reach, such as anything under `settings` |
+| `403` with an HTML body and `server: cloudflare` | The CDN, not the API. Send a normal `User-Agent`. If it persists, report the `cf-ray` value |
+| Consent: `redirect_uri does not match the app's registered redirect URLs` | It must match one of `redirect_urls` byte for byte |
+| Consent: `missing required scopes: …` or `scope not declared by the app: …` | The `scope` parameter must hold every required scope, plus only declared optional ones |
+| Consent: `This app is not published yet.` | Unpublished apps install only on the partner's own development stores |
+| Consent: `This store's plan allows N Partner Apps.` | The store reached its plan's app limit |
+| The signature never matches | The body was re-serialised before hashing, the `t.` was missing, the webhook and query schemes were mixed up, `app_url` has its own query string, or an old secret is deployed |
+| A `404` that should exist | A missing or extra trailing slash |
+| CLI: `not found. Are you an approved NUMU partner, and is the Partner program open?` | The account is not approved yet, or the program is closed |
+| `pricing.model: recurring is not available yet …` | Use `free` or `external` |
+| Arabic shows as `?` | The stack is not UTF-8 end to end (use `utf8mb4` on MySQL) |
 
 ---
 
-## 10. Where to look
+## 12. Where to look
 
-- **Guides:** `https://developers.numueg.app`: Apps · Partners · API · Tools.
-- **API reference:** `https://docs.numueg.app`.
-- **Contract:** `https://numueg.app/api/v1/public/openapi.json`.
-- **Manifest schema:** `https://developers.numueg.app/schemas/app-manifest-v1.json`.
-- **Policies:** `https://developers.numueg.app/partners/policies`.
-- **Partner portal:** `https://merchant.numueg.app/partners`.
-- **CLI:** `numu app --help`.
+- **Partner apps guide:** https://docs.numueg.app/-partner-apps-2440012m0
+- **Every page:** https://docs.numueg.app, with endpoint pages and code snippets
+- **Contract:** https://numueg.app/api/v1/public/openapi.json
+- **Partner portal:** https://merchant.numueg.app/partners
+- **CLI:** `numu app --help`
