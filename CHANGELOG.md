@@ -4,6 +4,13 @@ All notable changes to `@numueg/theme-cli` are documented here. The format is ba
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-09-23
+
+### Fixed
+
+- **`numu app init` scaffolds a developer skill that matches the live platform.** The skill it copies into `.claude/skills/numu-app-developer/SKILL.md` used to contradict the API in six places. Its `settings_schema` example used `label: {ar, en}` (the API requires `locales.ar.label`), and its `icon` example was a relative path (the API requires an `https://` URL). It told developers to sign in with `numu login --token <PAT>`, which a scoped personal token cannot use for partner commands. It named an `invalid_grant` error the API never sends, and pointed to `developers.numueg.app` pages and a `$schema` URL that do not exist. It also listed events NUMU does not send. It now follows the published guide at https://docs.numueg.app/-partner-apps-2440012m0.
+- **`numu login` on a 2FA account** no longer suggests an API token for `numu app` commands, which do not accept one; it points to the partner portal.
+
 ## [0.9.0] - 2026-09-22
 
 ### Added
