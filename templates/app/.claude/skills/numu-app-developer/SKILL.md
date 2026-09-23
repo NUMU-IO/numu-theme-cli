@@ -12,10 +12,9 @@ You are helping a developer who does **not** work at NUMU. They are building an 
 ## 0. Before anything else
 
 1. **The docs win.** The source of truth is the developer docs at **https://docs.numueg.app/-partner-apps-2440012m0**, together with the rest of **https://docs.numueg.app**. When this skill and the docs disagree, follow the docs and say so. The machine-readable contract is `https://numueg.app/api/v1/public/openapi.json`, and each operation names its scope in `x-numu-scope`.
-2. **Check the status notes on the docs pages before relying on these three:**
+2. **Check the status notes on the docs pages before relying on these two:**
    - **The partner program is a private beta, by invitation.** While it is closed, `/partners` says "The Partner program isn't open yet" and the partner API answers `404`. Invitations: engineering@numueg.app.
-   - **The `numu` CLI ships in `@numueg/theme-cli` 0.9.0.** If `npm view @numueg/theme-cli version` shows an older version, use the partner portal for every step.
-   - **Order and product webhooks may not carry `data.store_id` yet.** The Changelog says when it lands.
+   - **The `numu` CLI ships in `@numueg/theme-cli` 0.9.1 and later.** If `npm view @numueg/theme-cli version` shows an older version, use the partner portal for every step.
 3. **Pick the right kind of integration:**
 
    | Building | Use |
@@ -269,14 +268,14 @@ Reference: https://docs.numueg.app/app-webhooks-2440017m0. The manifest is the s
 - `X-NUMU-Signature-V1: t=<ts>,v1=<hex>`, where `v1` is HMAC-SHA256 of `"<ts>.<raw body>"` keyed with the **client secret**
 - `X-NUMU-Signature: sha256=…`, a legacy body-only signature. Prefer V1.
 
-**Body:** `{"event": "order.paid", "timestamp": "…", "data": {…}}`.
+**Body:** `{"event": "order.paid", "timestamp": "…", "data": {"store_id": "…", …}}`.
 
 **Events:**
 - `order.created`, `order.paid`, `order.status_changed`: need `orders:read`. `order.status_changed` carries `new_status` and `tracking_number`, so it is the shipping event.
 - `product.created`, `product.updated`, `product.deleted`: need `catalog:read`.
 - `app.uninstalled` (required) and `store.redact`: need no scope.
 
-**Which store:** lifecycle events carry `data.store_id`. Order and product events carry it once the API release that adds it is live; check the Changelog. Until then, test with one development store at a time.
+**Which store:** every delivery carries `data.store_id`. One URL receives every store's events, so route by it.
 
 **Delivery:**
 - Reply `2xx` within **10 seconds**; queue the work.
