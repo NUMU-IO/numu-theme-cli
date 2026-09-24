@@ -271,8 +271,13 @@ Reference: https://docs.numueg.app/app-webhooks-2440017m0. The manifest is the s
 **Body:** `{"event": "order.paid", "timestamp": "…", "data": {"store_id": "…", …}}`.
 
 **Events:**
-- `order.created`, `order.paid`, `order.status_changed`: need `orders:read`. `order.status_changed` carries `new_status` and `tracking_number`, so it is the shipping event.
+- `order.created`, `order.paid`, `order.status_changed`: need `orders:read`. `order.status_changed` carries the order's `new_status` and `tracking_number`.
+- `shipment.created`, `shipment.status_changed` (each carrier shipment: `status`, `previous_status`, `tracking_number`, `tracking_url`): need `orders:read`.
+- `refund.created`, `refund.completed`: need `orders:read`.
+- `checkout.abandoned` (once per abandoned cart; ids and totals, no phone): needs `orders:read`.
 - `product.created`, `product.updated`, `product.deleted`: need `catalog:read`.
+- `inventory.level_changed` (`product_id`, `variant_id`, current `quantity`; debounced to one delivery per 30 seconds per variant): needs `catalog:read`.
+- `customer.created`, `customer.updated`: need `customers:read`.
 - `app.uninstalled` (required) and `store.redact`: need no scope.
 
 **Which store:** every delivery carries `data.store_id`. One URL receives every store's events, so route by it.
