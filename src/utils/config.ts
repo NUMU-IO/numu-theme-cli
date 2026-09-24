@@ -65,7 +65,7 @@ function warnIfUntrustedHost(apiUrl: string): void {
 
 export function loadConfig(): NuMuConfig {
   const config: NuMuConfig = {
-    api_url: process.env.NUMU_API_URL || DEFAULT_API_URL,
+    api_url: DEFAULT_API_URL,
   };
 
   if (fs.existsSync(rcFile())) {
@@ -79,6 +79,7 @@ export function loadConfig(): NuMuConfig {
     }
   }
 
+  if (process.env.NUMU_API_URL) config.api_url = process.env.NUMU_API_URL;
   if (process.env.NUMU_TOKEN) config.token = process.env.NUMU_TOKEN;
   if (process.env.NUMU_STORE_ID) config.store_id = process.env.NUMU_STORE_ID;
 

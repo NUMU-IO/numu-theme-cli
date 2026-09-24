@@ -52,6 +52,20 @@ function assertHttpsOrLocalhost(urlStr: string): URL {
   throw new Error(`Unsupported protocol: ${url.protocol}`);
 }
 
+function exitUnreachable(apiUrl: string, err: NodeJS.ErrnoException): never {
+  const reasons: Record<string, string> = {
+    ECONNREFUSED: "connection refused",
+    ENOTFOUND: "host not found",
+    ETIMEDOUT: "connection timed out",
+    ECONNRESET: "connection reset",
+  };
+  const reason = (err.code && reasons[err.code]) || err.code || err.message;
+  console.error(
+    `✗ Cannot reach ${apiUrl}: ${reason}. Check NUMU_API_URL or run numu login --api-url <url>.`,
+  );
+  process.exit(1);
+}
+
 export async function apiRequest<T = unknown>(
   method: string,
   path: string,
@@ -95,7 +109,7 @@ export async function apiRequest<T = unknown>(
       },
     );
 
-    req.on("error", reject);
+    req.on("error", (err) => exitUnreachable(config.api_url, err));
     if (postData) req.write(postData);
     req.end();
   });
@@ -154,7 +168,7 @@ export async function uploadFile<T = unknown>(
       },
     );
 
-    req.on("error", reject);
+    req.on("error", (err) => exitUnreachable(config.api_url, err));
     req.write(fullBody);
     req.end();
   });
