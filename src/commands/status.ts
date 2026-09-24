@@ -26,6 +26,7 @@ interface VersionStatus {
   size_bytes?: number | null;
   checksum?: string | null;
   build_log?: string | null;
+  review_notes?: string | null;
 }
 
 interface Options {
@@ -82,6 +83,8 @@ export const statusCommand = new Command("status")
     ]);
     const TERMINAL_VERSION = new Set([
       "pending_review",
+      "approved",
+      "changes_requested",
       "published",
       "rejected",
       "build_failed",
@@ -124,7 +127,9 @@ export const statusCommand = new Command("status")
       const s = res.data;
       printVersion(s);
       const terminal = TERMINAL_VERSION.has(s.status);
-      const failed = s.status === "rejected" || s.status === "build_failed";
+      const failed = ["rejected", "changes_requested", "build_failed"].includes(
+        s.status,
+      );
       return { done: terminal, failed };
     }
 
@@ -171,6 +176,9 @@ function printVersion(s: VersionStatus): void {
   if (s.size_bytes != null)
     console.log(`Size:       ${formatBytes(s.size_bytes)}`);
   if (s.checksum) console.log(`Checksum:   ${s.checksum}`);
+  if (s.review_notes) console.log(`\nReview notes:\n${s.review_notes}`);
+  if (s.status === "approved")
+    console.log("\nApproved. Publish it from the Themes page of the partner portal.");
   if (s.build_log) console.log(`\nBuild log:\n${s.build_log}`);
   console.log("");
 }
