@@ -80,10 +80,10 @@ logo-cloud
 
 ## Docs
 
-- [CLI Reference](https://numueg.app/docs/cli-plugin/cli-commands)
-- [Lint Rules](https://numueg.app/docs/cli-plugin/lint-rules)
-- [Section Library](https://numueg.app/docs/cli-plugin/section-library)
-- [Theme Dev E2E](https://numueg.app/docs/workflows/theme-dev-e2e)
+- [CLI Reference](https://developers.numueg.app/cli-plugin/cli-commands)
+- [Lint Rules](https://developers.numueg.app/cli-plugin/lint-rules)
+- [Section Library](https://developers.numueg.app/cli-plugin/section-library)
+- [Theme Dev E2E](https://developers.numueg.app/workflows/theme-dev-e2e)
 
 ## Node version
 
